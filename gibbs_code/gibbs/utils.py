@@ -5,6 +5,7 @@ from itertools import product
 
 from qiskit.quantum_info import Statevector, SparsePauliOp, partial_trace, DensityMatrix
 from qiskit.circuit import QuantumCircuit
+from scipy.sparse.linalg import expm_multiply
 
 
 def expected_state(hamiltonian: SparsePauliOp, beta: float):
@@ -14,7 +15,7 @@ def expected_state(hamiltonian: SparsePauliOp, beta: float):
     return state
 
 
-def conjugate_pauli(pauli: str):
+def conjugate_pauli(pauli: str)->str:
     """For a given pauli string returns the pauli string such that the product of both
     will yield a non-zero imaginary value when evaluated at (|00>+|11>)^n.
     """
@@ -37,7 +38,10 @@ def conjugate_pauli(pauli: str):
 def printarray(array, rounding=3, func=np.real):
     """Prints a numpy array with a given rounding and function
     to deal with complex values."""
-    print(np.round(func(array), rounding))
+    if func == None:
+        print(np.round(array,rounding))
+    else:
+        print(np.round(func(array), rounding))
 
 
 def create_hamiltonian_lattice(
@@ -64,3 +68,22 @@ def state_from_ansatz(ansatz: QuantumCircuit, parameters: np.ndarray) -> Stateve
     return partial_trace(
         Statevector(ansatz.bind_parameters(parameters)), range(N, 2 * N)
     )
+
+
+def simple_purify_hamiltonian(
+    hamiltonian: SparsePauliOp, noise: float = 0
+) -> Statevector:
+    """Creates a statevector purification of the thermal state of the hamiltonian."""
+    extended_hamiltonian = hamiltonian ^ ("I" * hamiltonian.num_qubits)
+    sparse_hamiltonian = extended_hamiltonian.to_matrix(sparse=True)
+    id_pur = identity_purification(hamiltonian.num_qubits)
+    state = expm_multiply(
+        -sparse_hamiltonian / 2,
+        id_pur.data,
+    )
+    state = state / np.linalg.norm(state)
+    state += np.random.normal(0, noise, len(state)) * np.exp(
+        1j * np.random.uniform(0, 2 * np.pi, len(state))
+    )
+    state = state / np.linalg.norm(state)
+    return Statevector(state)
