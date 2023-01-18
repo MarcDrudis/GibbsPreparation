@@ -4,13 +4,14 @@ import numpy as np
 from qiskit.quantum_info import SparsePauliOp
 
 class KLocalPauliBasis():
-    def __init__(self, k, num_qubits):
+    def __init__(self, k, num_qubits,periodic:bool=False):
         self.k = min(k,num_qubits)
         self.num_qubits = num_qubits
+        self.periodic = periodic
         self._paulis_list = self._compute_paulis_list(k)
         self._pauli_to_num_dict = dict(zip(self._paulis_list, range(len(self._paulis_list))))
         self.size = len(self._paulis_list)
-    
+
     def pauli_to_num(self, pauli:str)->int:
         if pauli not in self._paulis_list:
             return None
@@ -47,13 +48,8 @@ class KLocalPauliBasis():
         
     def _extend_pauli(self, pauli:str):
         nidentities = self.num_qubits - len(pauli)
-        return ["I"*i + pauli + "I"*(nidentities-i) for i in range(nidentities+1)]
+        periodic_extension = [pauli[-i:] + "I"*nidentities + pauli[:-i] for i in range(1,len(pauli))] if self.periodic else []
+        extension = ["I"*i + pauli + "I"*(nidentities-i) for i in range(nidentities+1)]
+        return extension+periodic_extension
         
         
-if __name__ == "__main__":
-    kham = KLocalHamiltoinanBasis(3, 6)
-    hamiltonian = SparsePauliOp.from_list([("IIIXYZ", 1), ("IIXYZI", 2), ("IXYZII", 3), ("XYZIII", 4)])
-    vec = kham.hamiltoinan_to_vector(hamiltonian)
-    rec_ham = kham.vector_to_hamiltonian(vec)
-    print(vec)
-    print(rec_ham)

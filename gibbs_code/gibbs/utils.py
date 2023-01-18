@@ -12,7 +12,7 @@ def expected_state(hamiltonian: SparsePauliOp, beta: float):
     """Computes the mixed Gibbs state of a given hamiltonian at a given temperature."""
     state = expm(-beta * hamiltonian.to_matrix())
     state /= np.trace(state)
-    return state
+    return DensityMatrix(state)
 
 
 def conjugate_pauli(pauli: str)->str:
@@ -35,9 +35,13 @@ def conjugate_pauli(pauli: str)->str:
     return "I" * 2 * len(pauli)
 
 
-def printarray(array, rounding=3, func=np.real):
+def printarray(array, rounding=3, func=np.real, scientific=False):
     """Prints a numpy array with a given rounding and function
     to deal with complex values."""
+    if scientific:
+        np.set_printoptions(suppress=True)
+        print(array)
+        np.set_printoptions(suppress=False)
     if func == None:
         print(np.round(array,rounding))
     else:
@@ -45,12 +49,24 @@ def printarray(array, rounding=3, func=np.real):
 
 
 def create_hamiltonian_lattice(
-    num_sites: int, j_const: float, g_const: float
+    num_sites: int, j_const: float, g_const: float, 
 ) -> SparsePauliOp:
     """Creates an Ising Hamiltonian on a lattice."""
     zz_op = ["I" * i + "ZZ" + "I" * (num_sites - i - 2) for i in range(num_sites - 1)]
     x_op = ["I" * i + "X" + "I" * (num_sites - i - 1) for i in range(num_sites)]
     return SparsePauliOp(zz_op) * j_const + SparsePauliOp(x_op) * g_const
+
+
+def create_heisenberg(
+    num_sites: int, j_const: float, g_const: float,circular: bool = False
+) -> SparsePauliOp:
+    """Creates an Heisenberg Hamiltonian on a lattice."""
+    xx_op = ["I" * i + "XX" + "I" * (num_sites - i - 2) for i in range(num_sites - 1)]
+    yy_op = ["I" * i + "YY" + "I" * (num_sites - i - 2) for i in range(num_sites - 1)]
+    zz_op = ["I" * i + "ZZ" + "I" * (num_sites - i - 2) for i in range(num_sites - 1)]
+    circ_op = ["X"+ "I" * (num_sites - 2) + "X"]+["Y"+ "I" * (num_sites - 2) + "Y"]+["Z"+ "I" * (num_sites - 2) + "Z"] if circular else []
+    z_op = ["I" * i + "Z" + "I" * (num_sites - i - 1) for i in range(num_sites)]
+    return SparsePauliOp(xx_op+yy_op+zz_op+circ_op) * j_const + SparsePauliOp(z_op) * g_const
 
 
 def identity_purification(num_qubits: int) -> Statevector:
