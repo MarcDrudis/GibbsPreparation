@@ -2,10 +2,15 @@ from scipy.linalg import expm
 import numpy as np
 import functools
 from itertools import product
-
-from qiskit.quantum_info import Statevector, SparsePauliOp, partial_trace, DensityMatrix
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from qiskit.quantum_info import Statevector, SparsePauliOp, partial_trace, DensityMatrix, Pauli
 from qiskit.circuit import QuantumCircuit
 from scipy.sparse.linalg import expm_multiply
+from scipy.linalg import logm
+from gibbs.learning.hamiltonian_learning import HamiltonianLearning
+from IPython import display
+from gibbs.learning.klocal_pauli_basis import KLocalPauliBasis
 
 
 def expected_state(hamiltonian: SparsePauliOp, beta: float):
@@ -103,3 +108,36 @@ def simple_purify_hamiltonian(
     )
     state = state / np.linalg.norm(state)
     return Statevector(state)
+
+
+    
+def number_of_elements(k,n): # (n-k+1) * (3/4)**2 * 4**k
+    if k ==1:
+        return 3*n
+    
+    #The inner block of operators will be formed by {I,X,Y,Z}^{k-2}
+    inner_block = 4**(k-2)
+    #The blocks of this border need to be formed by {X,Y,Z}^2. If we have an identity in the border it would be a k-1 local term.
+    outer_block = 3**2
+    #Finally this block of operators is free to move around the lattice.
+    shifting = n-k+1 # This would just be n for periodic boundary conditions
+    return inner_block*outer_block*shifting
+
+def classical_learn_hamiltonian(state: QuantumCircuit|DensityMatrix, klocality:int) -> np.ndarray:
+    if isinstance(state,QuantumCircuit):
+        num_qubits = state.num_qubits//2
+        mixed_state = partial_trace(Statevector(state),range(num_qubits))
+    elif isinstance(state,DensityMatrix):
+        num_qubits = int(np.log2(state.shape[0]))
+        mixed_state = state.data        
+    else:
+        print("Not supported type")
+    
+    learning_basis = KLocalPauliBasis(klocality,num_qubits)
+    hamiltonian_cl_rec = -logm(mixed_state.data)
+    hamiltonian_cl_rec = hamiltonian_cl_rec #- np.eye(hamiltonian_cl_rec.shape[0])*np.trace(hamiltonian_cl_rec)/hamiltonian_cl_rec.shape[0]
+    recov_vec = [np.trace(hamiltonian_cl_rec@Pauli(p).to_matrix()) for p in learning_basis._paulis_list]
+    recov_vec = np.array([v/hamiltonian_cl_rec.shape[0] for v in recov_vec])
+    norm_vec = np.linalg.norm(recov_vec)
+    unit_vec = recov_vec/norm_vec if norm_vec != 0 else recov_vec
+    return unit_vec, norm_vec

@@ -16,7 +16,7 @@ from gibbs.learning.klocal_pauli_basis import KLocalPauliBasis
 
 class HamiltonianLearning:
     
-    def __init__(self,state: Statevector|QuantumCircuit|DensityMatrix , k_learning:int, k_constraints:int, parameters:None|np.ndarray = None, periodic:bool = False) -> None:
+    def __init__(self,state: Statevector|QuantumCircuit|DensityMatrix , k_learning:int, k_constraints:int, parameters:None|list[np.ndarray] = None, periodic:bool = False) -> None:
         
         if isinstance(state,Statevector):
             self.num_qubits = state.num_qubits//2
@@ -37,6 +37,7 @@ class HamiltonianLearning:
         self.constraint_matrix = None
         self.reconstructed_hamiltonian = None
         self.singular_decomposition = None
+        self.parameters = parameters
     
     def _expectation_value(self, pauli: str) -> float:
         if isinstance(self.state,Statevector):
@@ -52,7 +53,7 @@ class HamiltonianLearning:
         if isinstance(self.state,QuantumCircuit):
             estimator = Estimator()
             observables = [Pauli(pauli+"I"*len(pauli)) for pauli in self.sampling_basis._paulis_list]
-            result = estimator.run([self.state]*len(observables),observables=observables,shots=10000).result()
+            result = estimator.run([self.state.bind_parameters(self.parameters[-1])]*len(observables),observables=observables,shots=10000).result()
             self.sampled_paulis = result.values
         else:
             self.sampled_paulis = np.array([self._expectation_value(pauli) for pauli in self.sampling_basis._paulis_list])
@@ -98,12 +99,21 @@ class HamiltonianLearning:
         result = [None]*len(sing_vals)
         for i,_ in enumerate(result):
             result[i] = (sing_vals[i],np.asarray(sing_vecs[:,i]).reshape(-1))
-        self.singular_decomposition = result 
+        self.singular_decomposition = result
+        
+    def time_evol_faultyH(self):
+        norms = []
+        H_vecs = []
+        for k in range(len(self.parameters)):
+            H_vec,norm = self.classical_learn_hamiltonian(k) 
+            H_vecs.append(H_vec)
+            norms.append(norm)
+        return H_vecs, norms
     
-    def classical_learn_hamiltonian(self):
+    def classical_learn_hamiltonian(self,i:int=-1):
         """Finds the exact hamiltonian leading to the given state."""
         if isinstance(self.state,QuantumCircuit):
-            mixed_state = partial_trace(Statevector(self.state),range(self.num_qubits))
+            mixed_state = partial_trace(Statevector(self.state.bind_parameters(self.parameters[i])),range(self.num_qubits))
         if isinstance(self.state,DensityMatrix):
             mixed_state = self.state.data
             
