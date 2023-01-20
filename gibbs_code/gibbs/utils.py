@@ -1,8 +1,8 @@
+from __future__ import annotations
 from scipy.linalg import expm
 import numpy as np
 import functools
 from itertools import product
-from matplotlib.animation import FuncAnimation
 from qiskit.quantum_info import Statevector, SparsePauliOp, partial_trace, DensityMatrix, Pauli
 from qiskit.circuit import QuantumCircuit
 from scipy.sparse.linalg import expm_multiply
