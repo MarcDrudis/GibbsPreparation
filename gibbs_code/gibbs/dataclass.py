@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 import numpy as np
 from gibbs.utils import classical_learn_hamiltonian
 from gibbs.preparation.varqite import efficientTwoLocalansatz
-import matplotlib.pyplot as plt
 from gibbs.utils import number_of_elements
 
 
@@ -55,6 +54,7 @@ class GibbsResult:
     
     def animated_hamiltonian(self,interval:int = 1000,func:callable = np.abs):
         """Creates an animation of the evolution of the Hamiltonian."""
+        import matplotlib.pyplot as plt
         from matplotlib.animation import FuncAnimation
         from IPython.display import HTML
         plt.style.use("seaborn-pastel")
