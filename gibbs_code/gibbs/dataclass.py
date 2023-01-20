@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from datetime import datetime
-import json
 from dataclasses import dataclass, field
 import numpy as np
 from gibbs.utils import classical_learn_hamiltonian

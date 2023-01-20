@@ -1,5 +1,7 @@
 """Rotation around the arbitrary Pauli axis."""
 
+from __future__ import annotations
+
 from typing import Optional
 
 from qiskit.circuit.gate import Gate

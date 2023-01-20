@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from qiskit.circuit import QuantumCircuit, QuantumRegister, ParameterVector,Parameter
 from qiskit.quantum_info import SparsePauliOp, Statevector, partial_trace, entropy, Pauli
 from qiskit.circuit.library import EfficientSU2, PauliEvolutionGate, TwoLocal

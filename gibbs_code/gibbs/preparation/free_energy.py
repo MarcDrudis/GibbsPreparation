@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from cmaes import CMA
 from qiskit.quantum_info import Statevector, entropy,partial_trace
 import numpy as np
