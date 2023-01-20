@@ -2,14 +2,12 @@ from scipy.linalg import expm
 import numpy as np
 import functools
 from itertools import product
-import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from qiskit.quantum_info import Statevector, SparsePauliOp, partial_trace, DensityMatrix, Pauli
 from qiskit.circuit import QuantumCircuit
 from scipy.sparse.linalg import expm_multiply
 from scipy.linalg import logm
 from gibbs.learning.hamiltonian_learning import HamiltonianLearning
-from IPython import display
 from gibbs.learning.klocal_pauli_basis import KLocalPauliBasis
 
 
