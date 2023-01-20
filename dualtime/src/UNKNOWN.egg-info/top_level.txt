@@ -1,0 +1,10 @@
+__init__
+dual
+dual_bkp
+expectation
+fidelity
+gradients
+mclachlan
+optimizers
+qmetts
+realdual
