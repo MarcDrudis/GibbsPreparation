@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from cmaes import CMA
-from qiskit.quantum_info import Statevector, entropy,partial_trace
+from qiskit.quantum_info import Statevector, entropy, partial_trace
 import numpy as np
+
 
 def brute_cmaes(ansatz, hamiltonian, beta, max_evals):
     """Returns the parameters of the ansatz at a thermal state with temperature `beta`.
@@ -34,7 +35,9 @@ def brute_cmaes(ansatz, hamiltonian, beta, max_evals):
 
 def free_energy(ansatz, parameters, hamiltonian, beta):
     N = hamiltonian.num_qubits
-    state = partial_trace(Statevector(ansatz.bind_parameters(parameters)),range(N,2*N))
+    state = partial_trace(
+        Statevector(ansatz.bind_parameters(parameters)), range(N, 2 * N)
+    )
     energy = state.expectation_value(hamiltonian)
-    entr = entropy(state,base=np.e)
+    entr = entropy(state, base=np.e)
     return np.real(energy - entr / beta)
