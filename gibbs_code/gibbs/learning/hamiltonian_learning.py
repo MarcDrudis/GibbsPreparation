@@ -33,13 +33,16 @@ class HamiltonianLearning:
         if isinstance(state, Statevector):
             self.num_qubits = state.num_qubits // 2
             self.state = state
-        if isinstance(state, QuantumCircuit):
+        elif isinstance(state, QuantumCircuit):
             self.num_qubits = state.num_qubits // 2
             self.state = state
 
-        if isinstance(state, DensityMatrix):
+        elif isinstance(state, DensityMatrix):
             self.num_qubits = state.num_qubits
             self.state = state
+
+        else:
+            print("Not valid state", type(state))
 
         self.learning_basis = KLocalPauliBasis(
             k=k_learning, num_qubits=self.num_qubits, periodic=periodic
@@ -65,7 +68,7 @@ class HamiltonianLearning:
         if isinstance(self.state, DensityMatrix):
             return self.state.expectation_value(Pauli(pauli))
 
-    def sample_paulis(self,shots:int = 10000) -> np.array:
+    def sample_paulis(self, shots: int = 10000) -> np.array:
         """Creates a dictionary of sampled paulis and their probabilities from a given
         state and pauli basis to sample from."""
         if isinstance(self.state, QuantumCircuit):
@@ -87,7 +90,7 @@ class HamiltonianLearning:
                     for pauli in self.sampling_basis._paulis_list
                 ]
             )
-        self.sampled_paulis[np.abs(self.sampled_paulis) < 1e-10] = 0
+        # self.sampled_paulis[np.abs(self.sampled_paulis) < 1e-10] = 0
 
     def create_constraint_matrix(self) -> np.ndarray:
         """Creates a constraint matrix from the sampled paulis.
@@ -125,6 +128,8 @@ class HamiltonianLearning:
             (data, (row, col)),
             shape=(self.constraint_basis.size, self.learning_basis.size),
         )
+
+    ############################
 
     def reconstruct_hamiltonian(self):
         """Returns a list of the singular values and a list of the singular vectors of the
@@ -167,14 +172,14 @@ class HamiltonianLearning:
         unit_vec = recov_vec / norm_vec if norm_vec != 0 else recov_vec
         return unit_vec, norm_vec
 
-    def project_hamiltonian(self, l: int, hamiltonian: SparsePauliOp):
-        """Projects the original hamiltonian onthe the k first singular vectors of the constraint matrix."""
-        original_vector = self.learning_basis.pauli_to_vector(hamiltonian)
-        projection = np.zeros_like(self.singular_decomposition[0][1])
-        projection_coeffs = np.zeros(l)
-        for i in range(l):
-            projection_coeffs[i] = np.real(
-                np.dot(self.singular_decomposition[i][1], original_vector)
-            )
-            projection += projection_coeffs[i] * self.singular_decomposition[i][1]
-        return projection, projection_coeffs
+    # def project_hamiltonian(self, l: int, hamiltonian: SparsePauliOp):
+    #     """Projects the original hamiltonian onthe the k first singular vectors of the constraint matrix."""
+    #     original_vector = self.learning_basis.pauli_to_vector(hamiltonian)
+    #     projection = np.zeros_like(self.singular_decomposition[0][1])
+    #     projection_coeffs = np.zeros(l)
+    #     for i in range(l):
+    #         projection_coeffs[i] = np.real(
+    #             np.dot(self.singular_decomposition[i][1], original_vector)
+    #         )
+    #         projection += projection_coeffs[i] * self.singular_decomposition[i][1]
+    #     return projection, projection_coeffs

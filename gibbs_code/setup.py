@@ -9,5 +9,5 @@ setup(
     author="Marc Sanz Drudis",
     license="MIT",
     install_requires=["qiskit-terra == 0.23.0rc1"],
-    dependency_links=["git+https://github.com/Qiskit/qiskit-terra.git@main#egg=qiskit-terra-0.24"],
+    dependency_links=["git+"],
 )

@@ -15,7 +15,10 @@ class KLocalPauliBasis:
         self._pauli_to_num_dict = dict(
             zip(self._paulis_list, range(len(self._paulis_list)))
         )
-        self.size = len(self._paulis_list)
+
+    @property
+    def size(self):
+        return len(self._paulis_list)
 
     def pauli_to_num(self, pauli: str) -> int:
         if pauli not in self._paulis_list:

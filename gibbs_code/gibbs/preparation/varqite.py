@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from qiskit.circuit import QuantumCircuit, QuantumRegister, ParameterVector, Parameter
+from qiskit.circuit import (
+    QuantumCircuit,
+    QuantumRegister,
+    ParameterVector,
+    Parameter,
+    ClassicalRegister,
+)
 from qiskit.quantum_info import (
     SparsePauliOp,
     Statevector,
@@ -104,6 +110,7 @@ def efficientTwoLocalansatz(
     """
     qr = QuantumRegister(num_qubits, name="q")
     ancilla = QuantumRegister(num_qubits, name="a")
+    cr = ClassicalRegister(2 * num_qubits, name="c")
     ansatz = QuantumCircuit(qr, ancilla)
 
     eff = TwoLocal(

@@ -5,7 +5,11 @@ from dataclasses import dataclass, field
 import numpy as np
 from gibbs.preparation.varqite import efficientTwoLocalansatz
 from gibbs.learning.klocal_pauli_basis import KLocalPauliBasis
-from gibbs.utils import number_of_elements, identity_purification,classical_learn_hamiltonian
+from gibbs.utils import (
+    number_of_elements,
+    identity_purification,
+    classical_learn_hamiltonian,
+)
 from qiskit.quantum_info import state_fidelity, Statevector
 from scipy.sparse.linalg import expm_multiply
 
@@ -22,6 +26,8 @@ class GibbsResult:
     num_qubits: int
     klocality: int
     betas: list[float]
+    shots: int | None = None
+    runtime: str | None = None
     cfaulties: list[np.ndarray] | None = None
     date: str = field(
         default_factory=lambda: datetime.now().strftime("%d.%m.%Y_%H:%M:%S")
@@ -30,7 +36,10 @@ class GibbsResult:
     def __post_init__(self):
         if self.cfaulties is None:
             ansatz, _ = efficientTwoLocalansatz(**self.ansatz_arguments)
-            self.cfaulties = [classical_learn_hamiltonian(ansatz.bind_parameters(p), self.klocality) for p in self.parameters]
+            self.cfaulties = [
+                classical_learn_hamiltonian(ansatz.bind_parameters(p), self.klocality)
+                for p in self.parameters
+            ]
 
     def save(self, path):
         """
@@ -46,8 +55,20 @@ class GibbsResult:
         """
         dictionary = np.load(path, allow_pickle=True).item()
         if "cfaultnorms" in dictionary.keys():
-            dictionary.pop("cfaultnorms")            
+            dictionary.pop("cfaultnorms")
         return cls(**dictionary)
+
+    @property
+    def hamiltonian(self):
+        """Returns the original Hamiltonian."""
+        return KLocalPauliBasis(self.klocality, self.num_qubits).vector_to_pauli_op(
+            self.coriginal
+        )
+
+    @property
+    def ansatz(self):
+        """Returns the ansatz."""
+        return efficientTwoLocalansatz(**self.ansatz_arguments)[0]
 
     def animated_hamiltonian(self, interval: int = 1000, func: callable = np.abs):
         """Creates an animation of the evolution of the Hamiltonian."""
@@ -57,7 +78,8 @@ class GibbsResult:
 
         plt.style.use("seaborn-pastel")
         fig = plt.figure()
-        ax = plt.axes(xlim=(0, len(self.cfaulties[0])), ylim=(-1, 1))
+        scale = 1.1 * max(np.abs(self.coriginal))
+        ax = plt.axes(xlim=(0, len(self.cfaulties[0])), ylim=(-scale, scale))
 
         # add another axes at the top left corner of the figure
         axtext = fig.add_axes([0.0, 0.95, 0.1, 0.05])
@@ -89,7 +111,8 @@ class GibbsResult:
 
         def animate(i):
             x = range(len(self.cfaulties[-1]))
-            y = func(self.cfaulties[i])
+            rescaling = 1 / self.betas[i] if self.betas[i] != 0 else 1
+            y = func(self.cfaulties[i]) * rescaling
             line.set_data(x, y)
             time.set_text(f"beta={self.betas[i]:.3f}")
             return (
@@ -112,20 +135,24 @@ class GibbsResult:
         """Returns the fidelity of the state for each timestep."""
 
         fidelities = [None] * len(self.betas)
-        hamiltonian = KLocalPauliBasis(self.klocality,self.num_qubits).vector_to_pauli_op(self.coriginal)^("I"*self.num_qubits)
+        hamiltonian = KLocalPauliBasis(
+            self.klocality, self.num_qubits
+        ).vector_to_pauli_op(self.coriginal) ^ ("I" * self.num_qubits)
         expected_states = expm_multiply(
             -hamiltonian.to_matrix(sparse=True),
             identity_purification(self.num_qubits).data,
             start=0,
             stop=self.betas[-1] / 2,
             num=len(self.betas),
-            endpoint=True
+            endpoint=True,
         )
-        
+
         for i, p in enumerate(self.parameters):
             faulty_state = Statevector(
                 efficientTwoLocalansatz(**self.ansatz_arguments)[0].bind_parameters(p)
             )
-            expected_state = Statevector(expected_states[i])/np.linalg.norm(expected_states[i])
+            expected_state = Statevector(expected_states[i]) / np.linalg.norm(
+                expected_states[i]
+            )
             fidelities[i] = state_fidelity(faulty_state, expected_state)
         return fidelities

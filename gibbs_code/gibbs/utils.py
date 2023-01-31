@@ -57,6 +57,33 @@ def printarray(array, rounding=3, func=np.real, scientific=False):
         print(np.round(func(array), rounding))
 
 
+def lattice_hamiltonian(
+    num_sites: int,
+    j_const: float,
+    g_const: float,
+    one_local: list[str],
+    two_local: list[str],
+):
+    for o in one_local:
+        if len(o) != 1:
+            raise AssertionError("Lenght of one local fields is not correct")
+    for t in two_local:
+        if len(t) != 2:
+            raise AssertionError("Lenght of two local fields is not correct")
+
+    two_ops = []
+    for t in two_local:
+        two_ops += [
+            "I" * i + t + "I" * (num_sites - i - 2) for i in range(num_sites - 1)
+        ]
+
+    one_ops = []
+    for o in one_local:
+        one_ops += ["I" * i + o + "I" * (num_sites - i - 1) for i in range(num_sites)]
+
+    return SparsePauliOp(two_ops) * j_const + SparsePauliOp(one_ops) * g_const
+
+
 def create_hamiltonian_lattice(
     num_sites: int,
     j_const: float,
@@ -75,7 +102,7 @@ def create_heisenberg(
     xx_op = ["I" * i + "XX" + "I" * (num_sites - i - 2) for i in range(num_sites - 1)]
     yy_op = ["I" * i + "YY" + "I" * (num_sites - i - 2) for i in range(num_sites - 1)]
     zz_op = ["I" * i + "ZZ" + "I" * (num_sites - i - 2) for i in range(num_sites - 1)]
-    
+
     circ_op = (
         ["X" + "I" * (num_sites - 2) + "X"]
         + ["Y" + "I" * (num_sites - 2) + "Y"]
@@ -83,9 +110,9 @@ def create_heisenberg(
         if circular
         else []
     )
-    
+
     z_op = ["I" * i + "Z" + "I" * (num_sites - i - 1) for i in range(num_sites)]
-    
+
     return (
         SparsePauliOp(xx_op + yy_op + zz_op + circ_op) * j_const
         + SparsePauliOp(z_op) * g_const
