@@ -25,6 +25,7 @@ class TestBayesianLearning(unittest.TestCase):
         control_fields = [np.zeros(self.basis.size), cfield]
         prior_c_cov = np.eye(self.basis.size) * 0.1
         prior_cfield_cov = np.eye(self.basis.size) * 0.01
+        
         self.bl = BayesianLearning(
             states=states,
             control_fields=control_fields,
@@ -45,7 +46,10 @@ class TestBayesianLearning(unittest.TestCase):
         cond_cov = self.bl.cond_covariance(c_test, 0)
         # print(cond_cov)
 
-
     def test_update(self):
         self.SetUp()
-        print(self.bl.update(0))
+        print(self.bl.update(1))
+        
+    def test_cost(self):
+        self.SetUp()
+        self.bl.

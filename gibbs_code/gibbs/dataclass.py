@@ -59,6 +59,10 @@ class GibbsResult:
         return cls(**dictionary)
 
     @property
+    def state(self):
+        return self.ansatz.bind_parameters(self.parameters[-1])
+    
+    @property
     def hamiltonian(self):
         """Returns the original Hamiltonian."""
         return KLocalPauliBasis(self.klocality, self.num_qubits).vector_to_pauli_op(

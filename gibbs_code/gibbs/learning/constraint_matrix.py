@@ -56,15 +56,15 @@ class ConstraintMatrixFactory:
                 for pauli in self.sampling_basis._paulis_list
             ]
             result = estimator.run(
-                [state.bind_parameters(self.parameters[-1])] * len(observables),
+                [state] * len(observables),
                 observables=observables,
                 shots=shots,
             ).result()
             return result.values
-        elif isinstance(state, (Statevector,DensityMatrix)):
+        elif isinstance(state, (Statevector, DensityMatrix)):
             return np.array(
                 [
-                    self._expectation_value(state,pauli)
+                    self._expectation_value(state, pauli)
                     for pauli in self.sampling_basis._paulis_list
                 ]
             )
