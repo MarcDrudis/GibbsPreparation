@@ -171,14 +171,14 @@ def number_of_elements(k, n):  # (n-k+1) * (3/4)**2 * 4**k
 def classical_learn_hamiltonian(
     state: QuantumCircuit | DensityMatrix, klocality: int
 ) -> np.ndarray:
-    if isinstance(state, QuantumCircuit):
+    if isinstance(state, (QuantumCircuit,Statevector)):
         num_qubits = state.num_qubits // 2
         mixed_state = partial_trace(Statevector(state), range(num_qubits))
     elif isinstance(state, DensityMatrix):
         num_qubits = int(np.log2(state.shape[0]))
         mixed_state = state.data
     else:
-        print("Not supported type")
+        raise AssertionError("Not supported state")
 
     learning_basis = KLocalPauliBasis(klocality, num_qubits)
     hamiltonian_cl_rec = -logm(mixed_state.data)
@@ -189,3 +189,8 @@ def classical_learn_hamiltonian(
     ]
     recov_vec = np.array([v / hamiltonian_cl_rec.shape[0] for v in recov_vec])
     return recov_vec
+
+
+def spectral_dec(A):
+    u,s,v= np.linalg.svd(A.todense(),hermitian=False,compute_uv=True)
+    return s,np.asarray(v)

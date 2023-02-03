@@ -36,13 +36,23 @@ class ConstraintMatrixFactory:
         )
 
     def _expectation_value(
-        self, state: Statevector | DensityMatrix, pauli: str
+        self, state: Statevector | DensityMatrix, pauli: str, shots:int|None
     ) -> float:
         if isinstance(state, Statevector):
-            pauli_op = Pauli(pauli + "I" * len(pauli))
-            return state.expectation_value(pauli_op)
+            obs = Pauli(pauli + "I" * len(pauli))
         if isinstance(state, DensityMatrix):
-            return state.expectation_value(Pauli(pauli))
+            obs = Pauli(pauli)
+        expectation_value = np.real_if_close(state.expectation_value(obs))
+        if shots is None:
+            return expectation_value
+        else:
+            sq_obs = (obs @ obs)
+            sq_exp_val = np.real_if_close(state.expectation_value(sq_obs))
+            variance = sq_exp_val - expectation_value**2
+            variance = max(variance, 0)
+            standard_deviation = np.sqrt(variance / shots)
+            return np.random.normal(expectation_value, standard_deviation)
+
 
     def sample_paulis(
         self, state: QuantumCircuit | Statevector, shots: int
@@ -62,12 +72,14 @@ class ConstraintMatrixFactory:
             ).result()
             return result.values
         elif isinstance(state, (Statevector, DensityMatrix)):
+            
             return np.array(
                 [
-                    self._expectation_value(state, pauli)
+                    self._expectation_value(state, pauli,shots)
                     for pauli in self.sampling_basis._paulis_list
                 ]
             )
+            
         else:
             raise AssertionError(f"Wrong state type to sample from: {type(state)}")
 
