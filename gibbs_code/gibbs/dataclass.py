@@ -17,7 +17,7 @@ from scipy.sparse.linalg import expm_multiply
 @dataclass
 class GibbsResult:
     """
-    Dataclass that stores the result of theVarQITE evolution.
+    Dataclass that stores the result of the VarQITE evolution.
     """
 
     ansatz_arguments: dict
@@ -26,6 +26,8 @@ class GibbsResult:
     num_qubits: int
     klocality: int
     betas: list[float]
+    stored_gradients: list[np.ndarray] = None
+    stored_qgts: list[np.ndarray] = None
     shots: int | None = None
     runtime: str | None = None
     cfaulties: list[np.ndarray] | None = None
@@ -67,12 +69,15 @@ class GibbsResult:
         """Returns the original Hamiltonian."""
         return KLocalPauliBasis(self.klocality, self.num_qubits).vector_to_pauli_op(
             self.coriginal
-        )
+        ) 
 
     @property
     def ansatz(self):
         """Returns the ansatz."""
         return efficientTwoLocalansatz(**self.ansatz_arguments)[0]
+    
+    def local_size(self,k:int,periodic:bool=False):
+        return KLocalPauliBasis(k,self.num_qubits,periodic = periodic).size
 
     def animated_hamiltonian(self, interval: int = 1000, func: callable = np.abs):
         """Creates an animation of the evolution of the Hamiltonian."""

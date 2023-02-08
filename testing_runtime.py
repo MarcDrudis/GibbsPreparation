@@ -13,11 +13,11 @@ from qiskit.algorithms.time_evolvers.variational import VarQITE
 from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session
 from qiskit_ibm_runtime.options import Options
 from qiskit.primitives import Estimator as OuterEstimator
-from monkey import RuntimeRetryEstimator
+# from monkey import RuntimeRetryEstimator
 from qiskit.algorithms.time_evolvers.variational import ForwardEulerSolver
 from qiskit_aer.primitives import Estimator as AerEstimator
 from gibbs.custom_estimator import CounterEstimator
-from gibbs.customRK import customRK
+# from gibbs.customRK import customRK
 
 save_path = "saved_simulations/turbo/qiskit_testing/"
 
@@ -52,7 +52,7 @@ options.execution = {"shots": arguments["shots"]}
 
 
 #Consider that we need 2*num_qubits + 1 qubits in order to have the ansatz + the mmt qubit 
-backend = "ibm_nairobi"
+backend = "ibmq_qasm_simulator"
 with Session(service=service, backend=backend) as session:
     estimator = Estimator(session=session, options=options)
     gradient = ParamShiftEstimatorGradient(estimator)
@@ -76,6 +76,6 @@ gibbs_result = GibbsResult(ansatz_arguments=ansatz_arguments,
                         klocality=2,
                         betas = [2 *t for t in result_varqite.times],
                         shots = arguments["shots"],
-                        backend = backend,
+
 )
 gibbs_result.save(save_path+"arguments="+str(arguments))

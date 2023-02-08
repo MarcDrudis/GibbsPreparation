@@ -9,7 +9,7 @@ class CustomRK(RK45):
         t0,
         y0,
         t_bound,
-        max_step=np.inf,
+        max_step=0.1,
         rtol=1e-3,
         atol=1e-3,
         vectorized=False,

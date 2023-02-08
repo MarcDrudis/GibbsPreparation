@@ -12,5 +12,6 @@ obs = SparsePauliOp.from_list([("II",1)])
 with Session(service=service, backend="ibmq_qasm_simulator") as session:
     estimator = Estimator(session=session)
     # print(estimator.run([qc],[obs],[x0]).result())
-    gradient = LinCombEstimatorGradient(estimator)
-    print(gradient.run([qc],[obs],[x0]).result())
+    # gradient = LinCombEstimatorGradient(estimator)
+    qgt = LinCombQGT(estimator)
+    print(qgt.run([qc],[x0]).result())

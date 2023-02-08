@@ -6,6 +6,8 @@ from scipy.linalg import block_diag
 from scipy.sparse import bmat
 from scipy.optimize import minimize
 from gibbs.utils import classical_learn_hamiltonian
+from scipy.linalg import cholesky,solve_triangular
+from gibbs.utils import printarray
 import numpy as np
 import time
 
@@ -17,8 +19,7 @@ class BayesianLearning:
         control_fields: list[np.ndarrays],
         constraint_matrix_factory: ConstraintMatrixFactory,
         prior_mean: np.ndarray,
-        prior_c_cov: np.ndarray,
-        prior_cfield_cov: np.ndarray,
+        prior_covariance: np.ndarray|tuple[float,float],
         sampling_std: float,
         shots:int,
     ) -> None:
@@ -32,40 +33,37 @@ class BayesianLearning:
         self.control_fields = control_fields
         self.constraint_matrix_factory = constraint_matrix_factory
         self.sampling_std = sampling_std
-
+        self.size = prior_mean.size
         self.current_mean = prior_mean
-        self.total_cov = None
-        self.prior_cov = prior_c_cov
-        self.prior_cfield_cov = prior_cfield_cov
+        if isinstance(prior_covariance,tuple):
+            ones = np.ones(self.size)
+            self.total_cov = np.diag(np.concatenate([ones*prior_covariance[0]]+[ones*prior_covariance[0]]*(len(control_fields)-1))) 
+        else: 
+            self.total_cov = prior_covariance
 
         self.constraint_matrices = None
-        self.display = True
 
     
     @property
     def current_cov(self):
         """Covariance of c, what we are interested. This is only used to compute the blocks in the conditional covariance"""
-        if self.total_cov is None:
-            return self.prior_cov
-        return self.total_cov[:self.total_cov.shape[0]//2,:self.total_cov.shape[1]//2]
+        return self.total_cov[:self.size,:self.size]
     
-    @property
-    def cfield_cov(self):
+    def cfield_cov(self,index:int):
         """Covariance of v, the control field. We update the knowledge we had on the control fields as well.
         This is only used to compute the blocks in the conditional covariance"""
-        if self.total_cov is None:
-            return self.prior_cfield_cov
-        return self.total_cov[self.total_cov.shape[0]//2:,self.total_cov.shape[1]//2:]
+        if index == 0:
+            return np.zeros((self.size,self.size))
+        return self.total_cov[self.size*index:self.size*(index+1),self.size*index:self.size*(index+1)]
     
     @property
     def inverse_cov(self):
         """Inverse of the current covariance matrix"""
-        if self.total_cov is None:
-            return block_diag(np.linalg.inv(self.prior_cov),np.linalg.inv(self.prior_cfield_cov))
         return np.linalg.inv(self.total_cov)
-    @property
-    def Lx(self):
-        return np.linalg.cholesky(self.inverse_cov)
+    
+    # @property
+    # def Lx(self):
+    #     return np.linalg.cholesky(self.inverse_cov)
 
     def constraint_matrix(self, index: int) -> np.ndarray:
         if self.constraint_matrices == None:
@@ -75,18 +73,26 @@ class BayesianLearning:
             ]
         return self.constraint_matrices[index]
 
-    def cond_covariance(self, c,v) -> np.ndarray:
+    def cond_covariance(self,x) -> np.ndarray:
+        """
+        Returns the covariance of the error conditioned on x.
+        """
+        cov = block_diag(*[self._single_block_cond_cov(x,i) for i in range(len(self.control_fields))])
+        return cov
+    
+    def _single_block_cond_cov(self,x,c_field_index):
         """
         This returns a block of the conditional covariance. The shape should be the same as c.
         """
-        cfield_cov = self.cfield_cov
+        cfield_cov = self.cfield_cov(c_field_index)
+        c = x[:self.size]
+        v = x[self.size*c_field_index:self.size*(c_field_index+1)] if c_field_index!=0 else np.zeros_like(c)
         cov = (
             self.current_cov
             + cfield_cov
             + np.outer(c, c)
             + np.outer(v, v)
         )
-        
         np.fill_diagonal(
             cov,
             np.trace(self.current_cov)
@@ -96,76 +102,67 @@ class BayesianLearning:
         )
 
         return self.sampling_std * cov
+    
+    @staticmethod
+    def _cond_term(Gammaex,A,x):
+        """Given Gammaex, A and x compute the term 
+        Lex@A@x , where Lex is the cholesky decompostion of Gammaex inverse.
+        We use the fact that cholesky of the inverse is the inverse of cholesky.
+        Be warry that scipy uses different notation than paper.
+        """
+        L_inv = cholesky(Gammaex,lower=True)
+        c = solve_triangular(L_inv,A@x)
+        return np.linalg.norm(c) ** 2
+    
+    @staticmethod
+    def _distribution_term(Gammax,x,xbar):
+        """Returns the other term to minimize Lx(x-xbar).
+        """
+        L_inv = cholesky(Gammax,lower=True)
+        c = solve_triangular(L_inv,x-xbar)        
+        return np.linalg.norm(c) ** 2
+        
 
-    def _cost_function(
-        self, x, cfield_index, A, Lx
-    ):  # Here I really need to check whether I am using x or c in the correct way
-        # The main concern is that should I be changing
-        c = x[: x.size // 2]
-        v = x[x.size // 2 :]
-        
-        Gammaex = block_diag(
-            self.cond_covariance(c,np.zeros_like(c)), self.cond_covariance(c,v)
-        )
-        
-        Lex = np.linalg.cholesky(np.linalg.inv(Gammaex))
-        
-        xbar = np.append(self.current_mean,self.control_fields[cfield_index])
-        loss = np.linalg.norm(Lex @A@ x) ** 2
-        regularization = (
-            np.linalg.norm(Lx @ (x - xbar)) ** 2
-        )  # Specially here
-        # if self.display:
-        #     self.display = False
-        #     print("Lx")
-        #     print(Lx.diagonal())
-        #     print("Lex")
-        #     print(Lex.diagonal())
-        return loss + regularization
+    def _cost_function(self, x, A):#We can reduce the cost if Lx is diagonal
+        Gammaex = self.cond_covariance(x)
+        A = self.block_control_matrix(self.constraint_matrices)
+        xbar = np.concatenate([self.current_mean,*self.control_fields[1:]])
+
+        loss = self._cond_term(Gammaex,A,x)
+        regularization = self._distribution_term(self.total_cov,x,xbar)
+        return loss, regularization
     
     @staticmethod
     def block_control_matrix(constraint_matrices:list):
         return bmat([[constraint_matrices[0]]+[None]*(len(constraint_matrices)-1)]+[[c]+[None]*i + [c] +[None]*(len(constraint_matrices)-i-2) for i,c in enumerate(constraint_matrices[1:])])
 
-    def update_mean(self, cfield_index):
-        tiempoa = time.time()
-
-        A = self.block_control_matrix([self.constraint_matrix(0),self.constraint_matrix(cfield_index)])
+    def minimization_problem(self)-> dict:
+        A = self.block_control_matrix(self.constraint_matrices)
         
         def cost_function(x):
-            cost = self._cost_function(x, cfield_index, A, self.Lx)
-            # print(cost)
-            return cost
+            cost = self._cost_function(x, A)
+            return sum(cost)
         
-        x0 = np.append(classical_learn_hamiltonian(self.states[0],2), self.control_fields[cfield_index])
+        # x0 = np.concatenate([classical_learn_hamiltonian(self.states[0],3), *[self.control_fields[i] for i in range(1,len(self.control_fields))] ])
+        x0 = np.concatenate([self.current_mean, *[self.control_fields[i] for i in range(1,len(self.control_fields))] ])
         
         assert x0.size == A.shape[1], f"Size of x0: {x0.size} and constraint matrix: {A.shape} don't match"
         
-        tiempob=time.time()
-        posterior_mean = minimize(cost_function,x0,options={"maxiter":1e5,"xrtol":1e-5}).x
-        # from cma import fmin
-        # posterior_mean = fmin(cost_function,x0,1,)[0]
-        tiempoc= time.time()
-        print("The time it takes for minimize is:",tiempoc-tiempob,"for the rest:",tiempob-tiempoa)
-        print(f"The cost function ends up with a value of:{cost_function(posterior_mean)}, it started with a value of {cost_function(x0)}")
+        print(x0.shape,A.shape,)
+        
+        callback = lambda xx : self._cost_function(xx, A)
+
+        return {"fun": cost_function, "x0":x0, "callback":callback}
+    
+    
+    def update_mean(self):
+        min_prob = self.minimization_problem()
+        posterior_mean = minimize(**min_prob,options={"maxiter":1e5,"xrtol":1e-3,"disp":True}).x
+        print(f"The cost function ends up with a value of:{min_prob['fun'](posterior_mean) }, it started with a value of {min_prob['fun'](min_prob['x0'])}")
         return posterior_mean
     
-    def update_cov(self,x,cfield_index):
-        c = x[: x.size // 2]
-        v = x[x.size // 2 :]
-        constraint_matrix = bmat(
-            [
-                [   self.constraint_matrix(0),
-                    None
-                ],
-                [
-                    self.constraint_matrix(cfield_index),
-                    self.constraint_matrix(cfield_index)
-                ],
-            ]
-        )
-        Gammaex = block_diag(
-            self.cond_covariance(c, np.zeros_like(c)), self.cond_covariance(c, v)
-        )
+    def update_cov(self,posterior_x):
+        A = self.block_control_matrix(self.constraint_matrices)
+        Gammaex = self.cond_covariance(posterior_x)
         invgammaex = np.linalg.inv(Gammaex)
-        return np.linalg.inv(self.inverse_cov+  constraint_matrix.T@invgammaex@constraint_matrix)  
+        return np.linalg.inv(self.inverse_cov+  A.T@invgammaex@A)  
