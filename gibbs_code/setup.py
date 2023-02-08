@@ -8,6 +8,8 @@ setup(
     description="Package for creating Gibbs states and learning their faulty hamiltonians",
     author="Marc Sanz Drudis",
     license="MIT",
-    install_requires=["qiskit-terra == 0.23.0rc1"],
-    dependency_links=["git+"],
+    install_requires=["qiskit-terra == 0.23.0rc1"
+                      "qiskit-aer"
+                      ],
+    # dependency_links=["git+"],
 )

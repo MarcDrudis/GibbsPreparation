@@ -22,7 +22,7 @@ save_path = ""
 num_qubits = 4
 learning_locality = 3
 
-horiginal = lattice_hamiltonian(num_qubits,1/4,-1,one_local=["Z"],two_local=["ZZ"])
+horiginal = lattice_hamiltonian(num_qubits,1/4,-1,one_local=["Z"],two_local=["XX","YY","ZZ"])
 
 if len(sys.argv) > 1:
     coeffs = sys.argv[1::2]
@@ -72,6 +72,7 @@ with Session(service=service, backend=backend):
     }
 
     varqite = VarQITE(ansatz,x0, variational_principle=variational_principle, **varqite_kwargs)
+    print("Evolving")
     result_varqite = varqite.evolve(problem)
 
 print(result_varqite.times)
@@ -87,5 +88,3 @@ gibbs_result = GibbsResult(ansatz_arguments=ansatz_arguments,
                         stored_gradients = variational_principle.stored_gradients,                        
 )
 gibbs_result.save(save_path+f"num_qubits{num_qubits}_controlfield={sys.argv[1:]}")
-
-np.matmul
