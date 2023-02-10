@@ -76,6 +76,10 @@ class GibbsResult:
         """Returns the ansatz."""
         return efficientTwoLocalansatz(**self.ansatz_arguments)[0]
     
+    @property
+    def basis(self):
+        """Returns the KLocalPauliBasis."""
+        return KLocalPauliBasis(self.klocality,self.num_qubits)
     def local_size(self,k:int,periodic:bool=False):
         return KLocalPauliBasis(k,self.num_qubits,periodic = periodic).size
 

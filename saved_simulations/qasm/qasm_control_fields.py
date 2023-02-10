@@ -35,7 +35,6 @@ coriginal = KLocalPauliBasis(learning_locality,num_qubits).pauli_to_vector(horig
 ansatz_arguments = {"num_qubits":num_qubits,"depth":2,"entanglement":"reverse_linear","su2_gates":["ry"],"ent_gates":["cx"]}
 ansatz,x0 = efficientTwoLocalansatz(**ansatz_arguments)
 beta= 1
-
 problem = TimeEvolutionProblem(hamiltonian = horiginal^"I"*num_qubits, time = beta/2)
 
 #########################Problem defined. Now set up the backend.

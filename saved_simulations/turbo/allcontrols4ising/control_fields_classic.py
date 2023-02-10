@@ -16,10 +16,10 @@ from gibbs.qfiwrapper import variationalprinciplestorage
 
 save_path = ""
 
-num_qubits = 4
+num_qubits = 2
 learning_locality = 3
 
-horiginal = lattice_hamiltonian(num_qubits,-1/4,-1,one_local=["Y"],two_local=["XX","ZZ"])
+horiginal = lattice_hamiltonian(num_qubits,1/4,-1,one_local=["Z"],two_local=["XX","YY","ZZ"])
 
 if len(sys.argv) > 1:
     coeffs = sys.argv[1::2]
