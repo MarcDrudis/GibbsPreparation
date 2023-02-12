@@ -1,20 +1,21 @@
 from __future__ import annotations
-from scipy.linalg import expm
-import numpy as np
+
 import functools
 from itertools import product
-from qiskit.quantum_info import (
-    Statevector,
-    SparsePauliOp,
-    partial_trace,
-    DensityMatrix,
-    Pauli,
-)
-from qiskit.circuit import QuantumCircuit
-from scipy.sparse.linalg import expm_multiply
-from scipy.linalg import logm
+
+import numpy as np
 from gibbs.learning.hamiltonian_learning import HamiltonianLearning
 from gibbs.learning.klocal_pauli_basis import KLocalPauliBasis
+from qiskit.circuit import QuantumCircuit
+from qiskit.quantum_info import (
+    DensityMatrix,
+    Pauli,
+    SparsePauliOp,
+    Statevector,
+    partial_trace,
+)
+from scipy.linalg import expm, logm
+from scipy.sparse.linalg import expm_multiply
 
 
 def expected_state(hamiltonian: SparsePauliOp, beta: float):
@@ -128,7 +129,7 @@ def identity_purification(num_qubits: int) -> Statevector:
     return functools.reduce(lambda a, b: a + b, basis) / np.sqrt(2**num_qubits)
 
 
-def state_from_ansatz(ansatz: QuantumCircuit, parameters: np.ndarray) -> Statevector:
+def state_from_ansatz(ansatz: QuantumCircuit, parameters: np.ndarray) -> DensityMatrix:
     """Creates a statevector from an ansatz and parameters."""
     N = ansatz.num_qubits // 2
     return partial_trace(
@@ -171,7 +172,7 @@ def number_of_elements(k, n):  # (n-k+1) * (3/4)**2 * 4**k
 def classical_learn_hamiltonian(
     state: QuantumCircuit | DensityMatrix, klocality: int
 ) -> np.ndarray:
-    if isinstance(state, (QuantumCircuit,Statevector)):
+    if isinstance(state, (QuantumCircuit, Statevector)):
         num_qubits = state.num_qubits // 2
         mixed_state = partial_trace(Statevector(state), range(num_qubits))
     elif isinstance(state, DensityMatrix):
@@ -185,12 +186,12 @@ def classical_learn_hamiltonian(
     hamiltonian_cl_rec = hamiltonian_cl_rec  # - np.eye(hamiltonian_cl_rec.shape[0])*np.trace(hamiltonian_cl_rec)/hamiltonian_cl_rec.shape[0]
     recov_vec = [
         np.trace(hamiltonian_cl_rec @ Pauli(p).to_matrix())
-        for p in learning_basis._paulis_list
+        for p in learning_basis.paulis_list
     ]
     recov_vec = np.array([v / hamiltonian_cl_rec.shape[0] for v in recov_vec])
     return recov_vec
 
 
 def spectral_dec(A):
-    u,s,v= np.linalg.svd(A.todense(),hermitian=False,compute_uv=True)
-    return s,np.asarray(v)
+    u, s, v = np.linalg.svd(A.todense(), hermitian=False, compute_uv=True)
+    return s, np.asarray(v)

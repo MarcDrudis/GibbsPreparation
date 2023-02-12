@@ -1,27 +1,28 @@
 import unittest
-from ddt import data, ddt, unpack
-from qiskit.circuit import QuantumCircuit, Parameter
-from gibbs.learning.hamiltonian_learning import HamiltonianLearning
-from qiskit.quantum_info import Statevector, SparsePauliOp, partial_trace, DensityMatrix
-from scipy.sparse.linalg import expm_multiply, expm
+
 import numpy as np
+from ddt import data, ddt, unpack
+from gibbs.learning.hamiltonian_learning import HamiltonianLearning
+from gibbs.learning.klocal_pauli_basis import KLocalPauliBasis
 from gibbs.utils import (
+    create_hamiltonian_lattice,
     identity_purification,
     printarray,
-    create_hamiltonian_lattice,
     simple_purify_hamiltonian,
 )
-from gibbs.learning.klocal_pauli_basis import KLocalPauliBasis
+from qiskit.circuit import Parameter, QuantumCircuit
+from qiskit.quantum_info import DensityMatrix, SparsePauliOp, Statevector, partial_trace
+from scipy.sparse.linalg import expm, expm_multiply
 
 
 @ddt
 class TestKLocalPauliBasis(unittest.TestCase):
     def test_basis(self):
         pbs = KLocalPauliBasis(2, 4)
-        print(pbs._paulis_list)
+        print(pbs.paulis_list)
         for pauli in create_hamiltonian_lattice(4, 1, 1).paulis:
             assert (
-                pauli.to_label() in pbs._paulis_list
+                pauli.to_label() in pbs.paulis_list
             ), f"Not in the basis: {pauli.to_label()}"
 
     @data(

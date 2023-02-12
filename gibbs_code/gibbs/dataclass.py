@@ -36,12 +36,16 @@ class GibbsResult:
     )
 
     def __post_init__(self):
-        if self.cfaulties is None:
-            ansatz, _ = efficientTwoLocalansatz(**self.ansatz_arguments)
-            self.cfaulties = [
-                classical_learn_hamiltonian(ansatz.bind_parameters(p), self.klocality)
-                for p in self.parameters
-            ]
+        try:
+            if self.cfaulties is None:
+                ansatz, _ = efficientTwoLocalansatz(**self.ansatz_arguments)
+                self.cfaulties = [
+                    classical_learn_hamiltonian(ansatz.bind_parameters(p), self.klocality)
+                    for p in self.parameters
+                ]
+        except:
+            pass
+            
 
     def save(self, path):
         """

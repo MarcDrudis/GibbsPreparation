@@ -1,23 +1,23 @@
 from __future__ import annotations
-import numpy as np
-from itertools import product
+
 import functools
+from itertools import product
+
+import numpy as np
+from gibbs.learning.klocal_pauli_basis import KLocalPauliBasis
+from qiskit import QuantumCircuit
+from qiskit.circuit import ClassicalRegister
+from qiskit.primitives import Estimator
 from qiskit.quantum_info import (
-    Statevector,
+    DensityMatrix,
     Pauli,
     SparsePauliOp,
+    Statevector,
     partial_trace,
-    DensityMatrix,
 )
+from scipy.linalg import ishermitian, logm
 from scipy.sparse import csr_matrix
-from scipy.sparse.linalg import svds
-from qiskit.primitives import Estimator
-from qiskit.circuit import ClassicalRegister
-from scipy.sparse.linalg import expm_multiply, minres, eigsh, expm
-from scipy.linalg import logm
-from scipy.linalg import ishermitian
-from qiskit import QuantumCircuit
-from gibbs.learning.klocal_pauli_basis import KLocalPauliBasis
+from scipy.sparse.linalg import eigsh, expm, expm_multiply, minres, svds
 
 
 class HamiltonianLearning:
@@ -29,7 +29,6 @@ class HamiltonianLearning:
         parameters: None | list[np.ndarray] = None,
         periodic: bool = False,
     ) -> None:
-
         if isinstance(state, Statevector):
             self.num_qubits = state.num_qubits // 2
             self.state = state
@@ -75,7 +74,7 @@ class HamiltonianLearning:
             estimator = Estimator()
             observables = [
                 Pauli(pauli + "I" * len(pauli))
-                for pauli in self.sampling_basis._paulis_list
+                for pauli in self.sampling_basis.paulis_list
             ]
             result = estimator.run(
                 [self.state.bind_parameters(self.parameters[-1])] * len(observables),
@@ -87,7 +86,7 @@ class HamiltonianLearning:
             self.sampled_paulis = np.array(
                 [
                     self._expectation_value(pauli)
-                    for pauli in self.sampling_basis._paulis_list
+                    for pauli in self.sampling_basis.paulis_list
                 ]
             )
         # self.sampled_paulis[np.abs(self.sampled_paulis) < 1e-10] = 0
@@ -103,9 +102,9 @@ class HamiltonianLearning:
         data = []
         row = []
         col = []
-        for i, Aq_label in enumerate(self.constraint_basis._paulis_list):
+        for i, Aq_label in enumerate(self.constraint_basis.paulis_list):
             Aq_Pauli = Pauli(Aq_label)
-            for j, Sm_label in enumerate(self.learning_basis._paulis_list):
+            for j, Sm_label in enumerate(self.learning_basis.paulis_list):
                 Sm_Pauli = Pauli(Sm_label)
                 if Aq_Pauli.anticommutes(Sm_Pauli):
                     operator = 1j * Aq_Pauli @ Sm_Pauli
@@ -165,7 +164,7 @@ class HamiltonianLearning:
         hamiltonian_cl_rec = hamiltonian_cl_rec  # - np.eye(hamiltonian_cl_rec.shape[0])*np.trace(hamiltonian_cl_rec)/hamiltonian_cl_rec.shape[0]
         recov_vec = [
             np.trace(hamiltonian_cl_rec @ Pauli(p).to_matrix())
-            for p in self.learning_basis._paulis_list
+            for p in self.learning_basis.paulis_list
         ]
         recov_vec = np.array([v / hamiltonian_cl_rec.shape[0] for v in recov_vec])
         norm_vec = np.linalg.norm(recov_vec)

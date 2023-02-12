@@ -1,9 +1,10 @@
 from __future__ import annotations
-from gibbs.learning.klocal_pauli_basis import KLocalPauliBasis
-from qiskit.quantum_info import Statevector, DensityMatrix, Pauli
-from qiskit.primitives import Estimator
-from qiskit.circuit import QuantumCircuit
+
 import numpy as np
+from gibbs.learning.klocal_pauli_basis import KLocalPauliBasis
+from qiskit.circuit import QuantumCircuit
+from qiskit.primitives import Estimator
+from qiskit.quantum_info import DensityMatrix, Pauli, Statevector
 from scipy.sparse import csr_matrix
 
 
@@ -36,7 +37,7 @@ class ConstraintMatrixFactory:
         )
 
     def _expectation_value(
-        self, state: Statevector | DensityMatrix, pauli: str, shots:int|None
+        self, state: Statevector | DensityMatrix, pauli: str, shots: int | None
     ) -> float:
         if isinstance(state, Statevector):
             obs = Pauli(pauli + "I" * len(pauli))
@@ -46,13 +47,12 @@ class ConstraintMatrixFactory:
         if shots is None:
             return expectation_value
         else:
-            sq_obs = (obs @ obs)
+            sq_obs = obs @ obs
             sq_exp_val = np.real_if_close(state.expectation_value(sq_obs))
             variance = sq_exp_val - expectation_value**2
             variance = max(variance, 0)
             standard_deviation = np.sqrt(variance / shots)
             return np.random.normal(expectation_value, standard_deviation)
-
 
     def sample_paulis(
         self, state: QuantumCircuit | Statevector, shots: int
@@ -63,7 +63,7 @@ class ConstraintMatrixFactory:
             estimator = Estimator()
             observables = [
                 Pauli(pauli + "I" * len(pauli))
-                for pauli in self.sampling_basis._paulis_list
+                for pauli in self.sampling_basis.paulis_list
             ]
             result = estimator.run(
                 [state] * len(observables),
@@ -72,14 +72,13 @@ class ConstraintMatrixFactory:
             ).result()
             return result.values
         elif isinstance(state, (Statevector, DensityMatrix)):
-            
             return np.array(
                 [
-                    self._expectation_value(state, pauli,shots)
-                    for pauli in self.sampling_basis._paulis_list
+                    self._expectation_value(state, pauli, shots)
+                    for pauli in self.sampling_basis.paulis_list
                 ]
             )
-            
+
         else:
             raise AssertionError(f"Wrong state type to sample from: {type(state)}")
 
@@ -97,9 +96,9 @@ class ConstraintMatrixFactory:
         data = []
         row = []
         col = []
-        for i, Aq_label in enumerate(self.constraint_basis._paulis_list):
+        for i, Aq_label in enumerate(self.constraint_basis.paulis_list):
             Aq_Pauli = Pauli(Aq_label)
-            for j, Sm_label in enumerate(self.learning_basis._paulis_list):
+            for j, Sm_label in enumerate(self.learning_basis.paulis_list):
                 Sm_Pauli = Pauli(Sm_label)
                 if Aq_Pauli.anticommutes(Sm_Pauli):
                     operator = 1j * Aq_Pauli @ Sm_Pauli
