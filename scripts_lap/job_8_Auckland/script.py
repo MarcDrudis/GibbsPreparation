@@ -61,7 +61,7 @@ options.optimization_level = 2
 options.resilience_level = 2
 
 with Session(service=service, backend=backend):
-    estimator = Estimator(options=options)
+    estimator = Estimator(backend=backend, options=options)
     gradient = LinCombEstimatorGradient(estimator)
     qgt = LinCombQGT(estimator)
     variational_principle = variationalprinciplestorage(ImaginaryMcLachlanPrinciple)(
