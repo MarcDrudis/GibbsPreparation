@@ -122,7 +122,9 @@ def preparation_vsclassic(result: GibbsResult, result_classic: GibbsResult) -> N
     return fig
 
 
-def compare_preparations(results=list[GibbsResult], titles=list[str]):
+def compare_preparations(
+    results: list[GibbsResult], timesteps: list[int], titles: list[str]
+):
     """Takes a list of results and labels to plot them. Takes the original hamiltonian of the first state."""
     import plotly.express as px
 

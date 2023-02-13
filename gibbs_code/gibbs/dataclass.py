@@ -1,17 +1,29 @@
 from __future__ import annotations
 
-from datetime import datetime
+import os
 from dataclasses import dataclass, field
+from datetime import datetime
+
 import numpy as np
-from gibbs.preparation.varqite import efficientTwoLocalansatz
 from gibbs.learning.klocal_pauli_basis import KLocalPauliBasis
+from gibbs.preparation.varqite import efficientTwoLocalansatz
 from gibbs.utils import (
-    number_of_elements,
-    identity_purification,
     classical_learn_hamiltonian,
+    identity_purification,
+    number_of_elements,
 )
-from qiskit.quantum_info import state_fidelity, Statevector
+from qiskit.quantum_info import Statevector, state_fidelity
 from scipy.sparse.linalg import expm_multiply
+
+
+def get_results(folder_path: str) -> list[GibbsResult]:
+    """Loads all results in a folder"""
+    gibbs_result_list = []
+    for file in os.listdir(folder_path):
+        if file.endswith(".npy"):
+            path = os.path.join(folder_path, file)
+            gibbs_result_list.append(GibbsResult.load(path))
+    return gibbs_result_list
 
 
 @dataclass
@@ -40,12 +52,13 @@ class GibbsResult:
             if self.cfaulties is None:
                 ansatz, _ = efficientTwoLocalansatz(**self.ansatz_arguments)
                 self.cfaulties = [
-                    classical_learn_hamiltonian(ansatz.bind_parameters(p), self.klocality)
+                    classical_learn_hamiltonian(
+                        ansatz.bind_parameters(p), self.klocality
+                    )
                     for p in self.parameters
                 ]
         except:
             pass
-            
 
     def save(self, path):
         """
@@ -67,31 +80,32 @@ class GibbsResult:
     @property
     def state(self):
         return self.ansatz.bind_parameters(self.parameters[-1])
-    
+
     @property
     def hamiltonian(self):
         """Returns the original Hamiltonian."""
         return KLocalPauliBasis(self.klocality, self.num_qubits).vector_to_pauli_op(
             self.coriginal
-        ) 
+        )
 
     @property
     def ansatz(self):
         """Returns the ansatz."""
         return efficientTwoLocalansatz(**self.ansatz_arguments)[0]
-    
+
     @property
     def basis(self):
         """Returns the KLocalPauliBasis."""
-        return KLocalPauliBasis(self.klocality,self.num_qubits)
-    def local_size(self,k:int,periodic:bool=False):
-        return KLocalPauliBasis(k,self.num_qubits,periodic = periodic).size
+        return KLocalPauliBasis(self.klocality, self.num_qubits)
+
+    def local_size(self, k: int, periodic: bool = False):
+        return KLocalPauliBasis(k, self.num_qubits, periodic=periodic).size
 
     def animated_hamiltonian(self, interval: int = 1000, func: callable = np.abs):
         """Creates an animation of the evolution of the Hamiltonian."""
         import matplotlib.pyplot as plt
-        from matplotlib.animation import FuncAnimation
         from IPython.display import HTML
+        from matplotlib.animation import FuncAnimation
 
         plt.style.use("seaborn-pastel")
         fig = plt.figure()

@@ -1,29 +1,23 @@
 from __future__ import annotations
 
-from qiskit.circuit import (
-    QuantumCircuit,
-    QuantumRegister,
-    ParameterVector,
-    Parameter,
-    ClassicalRegister,
-)
-from qiskit.quantum_info import (
-    SparsePauliOp,
-    Statevector,
-    partial_trace,
-    entropy,
-    Pauli,
-)
-from qiskit.circuit.library import EfficientSU2, PauliEvolutionGate, TwoLocal
-from qiskit.circuit import ParameterVector, ParameterExpression
-from qiskit.synthesis.evolution.product_formula import evolve_pauli
 import random
 
+import numpy as np
+from gibbs.preparation.pauli_rotation import RPGate
+from gibbs.utils import state_from_ansatz
+from qiskit.circuit import (
+    ClassicalRegister,
+    Parameter,
+    ParameterExpression,
+    ParameterVector,
+    QuantumCircuit,
+    QuantumRegister,
+)
+from qiskit.circuit.library import EfficientSU2, PauliEvolutionGate, TwoLocal
+from qiskit.quantum_info import SparsePauliOp, Statevector, entropy, partial_trace
+from qiskit.synthesis.evolution.product_formula import evolve_pauli
 from scipy.optimize import minimize
 
-
-from gibbs.utils import *
-from gibbs.preparation.pauli_rotation import RPGate
 
 def brute_force_optimization(
     hamiltonian: SparsePauliOp,
@@ -71,8 +65,8 @@ def efficientTwoLocalansatz(
         insert_barriers=False,
     ).decompose()
 
-    reordered = [None]*num_qubits*2
-    reordered[::2]=list(qr)
+    reordered = [None] * num_qubits * 2
+    reordered[::2] = list(qr)
     reordered[1::2] = list(ancilla)
     ansatz.append(eff, qargs=reordered)
     # This one is the one that prepares the purification of the identity
