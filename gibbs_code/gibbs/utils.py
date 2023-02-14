@@ -5,7 +5,6 @@ from itertools import product
 
 import numpy as np
 from gibbs.learning.klocal_pauli_basis import KLocalPauliBasis
-from IPython import display
 from qiskit.circuit import QuantumCircuit
 from qiskit.quantum_info import (
     DensityMatrix,
