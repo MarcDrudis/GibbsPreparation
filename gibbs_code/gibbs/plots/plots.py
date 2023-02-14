@@ -3,11 +3,11 @@ from gibbs.dataclass import GibbsResult
 from gibbs.learning.klocal_pauli_basis import KLocalPauliBasis
 
 
-def dataframe(gibbs_result: GibbsResult, timestep: int = -1):
+def dataframe(gibbs_result: GibbsResult, timestep: int, periodic: bool = False):
     local_sizes = np.array(
         [0]
         + [
-            KLocalPauliBasis(i + 1, gibbs_result.num_qubits).size
+            KLocalPauliBasis(i + 1, gibbs_result.num_qubits, periodic).size
             for i in range(gibbs_result.klocality)
         ]
     )
@@ -17,10 +17,12 @@ def dataframe(gibbs_result: GibbsResult, timestep: int = -1):
     )
     data = {
         "Pauli Basis Label": KLocalPauliBasis(
-            gibbs_result.klocality, gibbs_result.num_qubits
+            gibbs_result.klocality, gibbs_result.num_qubits, periodic
         ).paulis_list,
         "Pauli Basis": np.arange(
-            KLocalPauliBasis(gibbs_result.klocality, gibbs_result.num_qubits).size
+            KLocalPauliBasis(
+                gibbs_result.klocality, gibbs_result.num_qubits, periodic
+            ).size
         ),
         "locality": local_labels,
         "prepH": np.real(gibbs_result.cfaulties[timestep]),
@@ -75,10 +77,13 @@ def posteriordist(gibbs_result: GibbsResult, posterior_mean, posterior_cov):
     fig.show()
 
 
-def preparation(result: GibbsResult, timestep: int = -1) -> None:
+def preparation(
+    result: GibbsResult, timestep: int = -1, periodic: bool = False
+) -> None:
     import plotly.express as px
 
-    df, local_sizes = dataframe(result, timestep)
+    df, local_sizes = dataframe(result, timestep, periodic)
+    print(df["prepH"].shape, df["priorH"].shape, df["Pauli Basis"].shape)
     fig = px.bar(
         df,
         x="Pauli Basis",
@@ -122,13 +127,11 @@ def preparation_vsclassic(result: GibbsResult, result_classic: GibbsResult) -> N
     return fig
 
 
-def compare_preparations(
-    results: list[GibbsResult], timesteps: list[int], titles: list[str]
-):
+def compare_preparations(results: list[GibbsResult], titles: list[str], timestep: int):
     """Takes a list of results and labels to plot them. Takes the original hamiltonian of the first state."""
     import plotly.express as px
 
-    df, local_sizes = dataframe(results[0])
+    df, local_sizes = dataframe(results[0], timestep)
     for title, result in zip(titles, results):
         df[title] = np.real(result.cfaulties[-1])
     fig = px.bar(

@@ -1,5 +1,6 @@
 import sys
 
+from gibbs.custom_estimator import RetryEstimator as Estimator
 from gibbs.dataclass import GibbsResult
 from gibbs.learning.klocal_pauli_basis import KLocalPauliBasis
 from gibbs.preparation.varqite import efficientTwoLocalansatz
@@ -12,10 +13,8 @@ from qiskit.algorithms.time_evolvers.variational import (
     ImaginaryMcLachlanPrinciple,
     VarQITE,
 )
-from qiskit.providers.fake_provider import FakeAuckland
 from qiskit.quantum_info import SparsePauliOp
-from qiskit_aer.noise import NoiseModel
-from qiskit_ibm_runtime import Estimator, QiskitRuntimeService, Session
+from qiskit_ibm_runtime import QiskitRuntimeService, Session
 from qiskit_ibm_runtime.options import Options
 
 save_path = ""
@@ -50,23 +49,13 @@ beta_timestep = 0.02
 beta = varqite_kwargs["num_timesteps"] * beta_timestep * 2
 
 problem = TimeEvolutionProblem(hamiltonian=horiginal ^ "I" * num_qubits, time=beta / 2)
-
 #########################Problem defined. Now set up the backend.
 # load the service and set the backend to the simulator
-service = QiskitRuntimeService()
-backend = "ibmq_qasm_simulator"
-# Make a noise model
-fake_backend = FakeAuckland()
-noise_model = NoiseModel.from_backend(fake_backend)
 
-# Set options to include the noise model
+print("Loading Service")
+service = QiskitRuntimeService()
+backend = "ibmq_kolkata"
 options = Options()
-options.simulator = {
-    "noise_model": noise_model,
-    "basis_gates": fake_backend.operation_names,
-    "coupling_map": sorted(set([tuple(sorted(x)) for x in fake_backend.coupling_map])),
-    "seed_simulator": 42,
-}
 
 # Set number of shots, optimization_level and resilience_level
 options.execution.shots = 1e4 / 5
@@ -74,7 +63,7 @@ options.optimization_level = 2
 options.resilience_level = 2
 
 with Session(service=service, backend=backend):
-    estimator = Estimator(options=options)
+    estimator = Estimator(backend=backend, options=options)
     gradient = LinCombEstimatorGradient(estimator)
     qgt = LinCombQGT(estimator)
     variational_principle = variationalprinciplestorage(ImaginaryMcLachlanPrinciple)(
@@ -84,10 +73,10 @@ with Session(service=service, backend=backend):
     varqite = VarQITE(
         ansatz, x0, variational_principle=variational_principle, **varqite_kwargs
     )
-    print("Evolving")
+    print("evolving")
     result_varqite = varqite.evolve(problem)
 
-print(2 * result_varqite.times)
+print("evolved", result_varqite.times)
 
 #########################Storing result
 gibbs_result = GibbsResult(

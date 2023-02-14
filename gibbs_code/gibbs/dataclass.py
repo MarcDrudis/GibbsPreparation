@@ -11,7 +11,9 @@ from gibbs.utils import (
     classical_learn_hamiltonian,
     identity_purification,
     number_of_elements,
+    simple_purify_hamiltonian,
 )
+from qiskit import QuantumCircuit
 from qiskit.quantum_info import Statevector, state_fidelity
 from scipy.sparse.linalg import expm_multiply
 
@@ -43,6 +45,7 @@ class GibbsResult:
     shots: int | None = None
     runtime: str | None = None
     cfaulties: list[np.ndarray] | None = None
+    periodic: bool = False
     date: str = field(
         default_factory=lambda: datetime.now().strftime("%d.%m.%Y_%H:%M:%S")
     )
@@ -53,7 +56,7 @@ class GibbsResult:
                 ansatz, _ = efficientTwoLocalansatz(**self.ansatz_arguments)
                 self.cfaulties = [
                     classical_learn_hamiltonian(
-                        ansatz.bind_parameters(p), self.klocality
+                        ansatz.bind_parameters(p), self.klocality, self.periodic
                     )
                     for p in self.parameters
                 ]
@@ -77,16 +80,16 @@ class GibbsResult:
             dictionary.pop("cfaultnorms")
         return cls(**dictionary)
 
-    @property
-    def state(self):
+    def state_ansatz(self, timestep: int) -> QuantumCircuit:
         return self.ansatz.bind_parameters(self.parameters[-1])
+
+    def state_vector(self, timestep: int) -> Statevector:
+        return Statevector(self.state_ansatz(timestep))
 
     @property
     def hamiltonian(self):
         """Returns the original Hamiltonian."""
-        return KLocalPauliBasis(self.klocality, self.num_qubits).vector_to_pauli_op(
-            self.coriginal
-        )
+        return self.basis.vector_to_pauli_op(self.coriginal)
 
     @property
     def ansatz(self):
@@ -97,6 +100,13 @@ class GibbsResult:
     def basis(self):
         """Returns the KLocalPauliBasis."""
         return KLocalPauliBasis(self.klocality, self.num_qubits)
+
+    def fidelity(self, timestep: int) -> float:
+        """Computes the fidelity between the faulty state at a given timestep with the expected preparation."""
+        return state_fidelity(
+            self.state_vector(timestep),
+            simple_purify_hamiltonian(self.hamiltonian * self.betas[timestep]),
+        )
 
     def local_size(self, k: int, periodic: bool = False):
         return KLocalPauliBasis(k, self.num_qubits, periodic=periodic).size
@@ -164,26 +174,4 @@ class GibbsResult:
 
     def fidelity_evolution(self):
         """Returns the fidelity of the state for each timestep."""
-
-        fidelities = [None] * len(self.betas)
-        hamiltonian = KLocalPauliBasis(
-            self.klocality, self.num_qubits
-        ).vector_to_pauli_op(self.coriginal) ^ ("I" * self.num_qubits)
-        expected_states = expm_multiply(
-            -hamiltonian.to_matrix(sparse=True),
-            identity_purification(self.num_qubits).data,
-            start=0,
-            stop=self.betas[-1] / 2,
-            num=len(self.betas),
-            endpoint=True,
-        )
-
-        for i, p in enumerate(self.parameters):
-            faulty_state = Statevector(
-                efficientTwoLocalansatz(**self.ansatz_arguments)[0].bind_parameters(p)
-            )
-            expected_state = Statevector(expected_states[i]) / np.linalg.norm(
-                expected_states[i]
-            )
-            fidelities[i] = state_fidelity(faulty_state, expected_state)
-        return fidelities
+        return [self.fidelity(i) for i in range(len(self.betas))]

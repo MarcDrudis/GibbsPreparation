@@ -1,3 +1,4 @@
+import json
 import sys
 
 from gibbs.dataclass import GibbsResult
@@ -12,54 +13,59 @@ from qiskit.algorithms.time_evolvers.variational import (
     ImaginaryMcLachlanPrinciple,
     VarQITE,
 )
+from qiskit.primitives import Estimator
 from qiskit.providers.fake_provider import FakeAuckland
 from qiskit.quantum_info import SparsePauliOp
 from qiskit_aer.noise import NoiseModel
 from qiskit_ibm_runtime import Estimator, QiskitRuntimeService, Session
 from qiskit_ibm_runtime.options import Options
 
-save_path = ""
-
-num_qubits = 4
-learning_locality = 3
-
-horiginal = lattice_hamiltonian(
-    num_qubits, 1 / 4, -1, one_local=["Z"], two_local=["XX", "YY", "ZZ"]
-)
-
-if len(sys.argv) > 1:
-    coeffs = sys.argv[1::2]
-    terms = sys.argv[2::2]
-    control_field = SparsePauliOp.from_list(
-        [(terms[i], float(coeffs[i])) for i in range(len(coeffs))]
-    )
-    horiginal = (horiginal + control_field).simplify()
-
-coriginal = KLocalPauliBasis(learning_locality, num_qubits).pauli_to_vector(horiginal)
-
+#########Load the arguments from a text file.
+with open("arguments.txt") as f:
+    data = f.read()
+input_args = json.loads(data)
+#########Set the variables inside of the python script.
+num_qubits = input_args["num_qubits"]
+learning_locality = input_args["learning_locality"]
+beta_timestep = input_args["beta_timestep"]
+num_timesteps = input_args["num_timesteps"]
 ansatz_arguments = {
-    "num_qubits": num_qubits,
-    "depth": 2,
-    "entanglement": "reverse_linear",
-    "su2_gates": ["ry"],
-    "ent_gates": ["cx"],
+    k: input_args[k]
+    for k in (
+        "num_qubits",
+        "depth",
+        "entanglement",
+        "su2_gates",
+        "ent_gates",
+    )
 }
+lattice_hamiltonian_arguments = {
+    k: input_args[k]
+    for k in (
+        "num_qubits",
+        "j_const",
+        "g_const",
+        "one_local",
+        "two_local",
+    )
+}
+varqite_kwargs = {"ode_solver": ForwardEulerSolver, "num_timesteps": num_timesteps}
+beta = varqite_kwargs["num_timesteps"] * beta_timestep
+##########Initialize the problem.
+horiginal = lattice_hamiltonian(**lattice_hamiltonian_arguments)
+if input_args["cfield"] is not None:
+    control_field = SparsePauliOp.from_list(input_args["cfield"])
+    horiginal = (horiginal + control_field).simplify()
+coriginal = KLocalPauliBasis(learning_locality, num_qubits).pauli_to_vector(horiginal)
 ansatz, x0 = efficientTwoLocalansatz(**ansatz_arguments)
-varqite_kwargs = {"ode_solver": ForwardEulerSolver, "num_timesteps": 15}
-beta_timestep = 0.02
-beta = varqite_kwargs["num_timesteps"] * beta_timestep * 2
-
 problem = TimeEvolutionProblem(hamiltonian=horiginal ^ "I" * num_qubits, time=beta / 2)
 
-#########################Problem defined. Now set up the backend.
-# load the service and set the backend to the simulator
+##########Choose service and backend
 service = QiskitRuntimeService()
 backend = "ibmq_qasm_simulator"
-# Make a noise model
+##########For qasm simulator we need to setup a noise model
 fake_backend = FakeAuckland()
 noise_model = NoiseModel.from_backend(fake_backend)
-
-# Set options to include the noise model
 options = Options()
 options.simulator = {
     "noise_model": noise_model,
@@ -67,12 +73,11 @@ options.simulator = {
     "coupling_map": sorted(set([tuple(sorted(x)) for x in fake_backend.coupling_map])),
     "seed_simulator": 42,
 }
-
-# Set number of shots, optimization_level and resilience_level
+##########Set shots and resilience. 2 is ZNE
 options.execution.shots = 1e4 / 5
 options.optimization_level = 2
 options.resilience_level = 2
-
+##########Initialize Estimator and Gradients and run the simulation
 with Session(service=service, backend=backend):
     estimator = Estimator(options=options)
     gradient = LinCombEstimatorGradient(estimator)
@@ -89,7 +94,8 @@ with Session(service=service, backend=backend):
 
 print(2 * result_varqite.times)
 
-#########################Storing result
+
+########## Storing result
 gibbs_result = GibbsResult(
     ansatz_arguments=ansatz_arguments,
     parameters=result_varqite.parameter_values,
@@ -100,4 +106,4 @@ gibbs_result = GibbsResult(
     stored_qgts=variational_principle.stored_qgts,
     stored_gradients=variational_principle.stored_gradients,
 )
-gibbs_result.save(save_path + f"num_qubits{num_qubits}_controlfield={sys.argv[1:]}")
+gibbs_result.save("classic_result")

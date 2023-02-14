@@ -5,6 +5,7 @@ from itertools import product
 
 import numpy as np
 from gibbs.learning.klocal_pauli_basis import KLocalPauliBasis
+from IPython import display
 from qiskit.circuit import QuantumCircuit
 from qiskit.quantum_info import (
     DensityMatrix,
@@ -15,6 +16,14 @@ from qiskit.quantum_info import (
 )
 from scipy.linalg import expm, logm
 from scipy.sparse.linalg import expm_multiply
+
+
+def print_ansatz(ansatz: QuantumCircuit) -> None:
+    wire_order = list(range(ansatz.num_qubits))
+    wire_order = wire_order[::2] + wire_order[1::2]
+    return ansatz.decompose().draw(
+        output="mpl", scale=0.8, wire_order=[0, 4, 1, 5, 2, 6, 3, 7]
+    )
 
 
 def expected_state(hamiltonian: SparsePauliOp, beta: float):
@@ -58,11 +67,12 @@ def printarray(array, rounding=3, func=np.real, scientific=False):
 
 
 def lattice_hamiltonian(
-    num_sites: int,
+    num_qubits: int,
     j_const: float,
     g_const: float,
     one_local: list[str],
     two_local: list[str],
+    periodic: bool = False,
 ):
     for o in one_local:
         if len(o) != 1:
@@ -74,44 +84,46 @@ def lattice_hamiltonian(
     two_ops = []
     for t in two_local:
         two_ops += [
-            "I" * i + t + "I" * (num_sites - i - 2) for i in range(num_sites - 1)
+            "I" * i + t + "I" * (num_qubits - i - 2) for i in range(num_qubits - 1)
         ]
+        if periodic:
+            two_ops += [t[0] + "I" * (num_qubits - 2) + t[1]]
 
     one_ops = []
     for o in one_local:
-        one_ops += ["I" * i + o + "I" * (num_sites - i - 1) for i in range(num_sites)]
+        one_ops += ["I" * i + o + "I" * (num_qubits - i - 1) for i in range(num_qubits)]
 
     return SparsePauliOp(two_ops) * j_const + SparsePauliOp(one_ops) * g_const
 
 
 def create_hamiltonian_lattice(
-    num_sites: int,
+    num_qubits: int,
     j_const: float,
     g_const: float,
 ) -> SparsePauliOp:
     """Creates an Ising Hamiltonian on a lattice."""
-    zz_op = ["I" * i + "ZZ" + "I" * (num_sites - i - 2) for i in range(num_sites - 1)]
-    x_op = ["I" * i + "X" + "I" * (num_sites - i - 1) for i in range(num_sites)]
+    zz_op = ["I" * i + "ZZ" + "I" * (num_qubits - i - 2) for i in range(num_qubits - 1)]
+    x_op = ["I" * i + "X" + "I" * (num_qubits - i - 1) for i in range(num_qubits)]
     return SparsePauliOp(zz_op) * j_const + SparsePauliOp(x_op) * g_const
 
 
 def create_heisenberg(
-    num_sites: int, j_const: float, g_const: float, circular: bool = False
+    num_qubits: int, j_const: float, g_const: float, circular: bool = False
 ) -> SparsePauliOp:
     """Creates an Heisenberg Hamiltonian on a lattice."""
-    xx_op = ["I" * i + "XX" + "I" * (num_sites - i - 2) for i in range(num_sites - 1)]
-    yy_op = ["I" * i + "YY" + "I" * (num_sites - i - 2) for i in range(num_sites - 1)]
-    zz_op = ["I" * i + "ZZ" + "I" * (num_sites - i - 2) for i in range(num_sites - 1)]
+    xx_op = ["I" * i + "XX" + "I" * (num_qubits - i - 2) for i in range(num_qubits - 1)]
+    yy_op = ["I" * i + "YY" + "I" * (num_qubits - i - 2) for i in range(num_qubits - 1)]
+    zz_op = ["I" * i + "ZZ" + "I" * (num_qubits - i - 2) for i in range(num_qubits - 1)]
 
     circ_op = (
-        ["X" + "I" * (num_sites - 2) + "X"]
-        + ["Y" + "I" * (num_sites - 2) + "Y"]
-        + ["Z" + "I" * (num_sites - 2) + "Z"]
+        ["X" + "I" * (num_qubits - 2) + "X"]
+        + ["Y" + "I" * (num_qubits - 2) + "Y"]
+        + ["Z" + "I" * (num_qubits - 2) + "Z"]
         if circular
         else []
     )
 
-    z_op = ["I" * i + "Z" + "I" * (num_sites - i - 1) for i in range(num_sites)]
+    z_op = ["I" * i + "Z" + "I" * (num_qubits - i - 1) for i in range(num_qubits)]
 
     return (
         SparsePauliOp(xx_op + yy_op + zz_op + circ_op) * j_const
@@ -169,7 +181,7 @@ def number_of_elements(k, n):  # (n-k+1) * (3/4)**2 * 4**k
 
 
 def classical_learn_hamiltonian(
-    state: QuantumCircuit | DensityMatrix, klocality: int
+    state: QuantumCircuit | DensityMatrix, klocality: int, periodic: bool = False
 ) -> np.ndarray:
     if isinstance(state, (QuantumCircuit, Statevector)):
         num_qubits = state.num_qubits // 2
@@ -180,7 +192,7 @@ def classical_learn_hamiltonian(
     else:
         raise AssertionError("Not supported state")
 
-    learning_basis = KLocalPauliBasis(klocality, num_qubits)
+    learning_basis = KLocalPauliBasis(klocality, num_qubits, periodic=periodic)
     hamiltonian_cl_rec = -logm(mixed_state.data)
     hamiltonian_cl_rec = hamiltonian_cl_rec  # - np.eye(hamiltonian_cl_rec.shape[0])*np.trace(hamiltonian_cl_rec)/hamiltonian_cl_rec.shape[0]
     recov_vec = [

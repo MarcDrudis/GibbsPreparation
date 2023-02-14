@@ -5,18 +5,15 @@ from gibbs.learning.klocal_pauli_basis import KLocalPauliBasis
 from gibbs.preparation.varqite import efficientTwoLocalansatz
 from gibbs.qfiwrapper import variationalprinciplestorage
 from gibbs.utils import lattice_hamiltonian
-from qiskit.algorithms.gradients import LinCombEstimatorGradient, LinCombQGT
+from qiskit.algorithms.gradients import ReverseEstimatorGradient, ReverseQGT
 from qiskit.algorithms.time_evolvers import TimeEvolutionProblem
 from qiskit.algorithms.time_evolvers.variational import (
     ForwardEulerSolver,
     ImaginaryMcLachlanPrinciple,
     VarQITE,
 )
-from qiskit.providers.fake_provider import FakeAuckland
+from qiskit.primitives import Estimator
 from qiskit.quantum_info import SparsePauliOp
-from qiskit_aer.noise import NoiseModel
-from qiskit_ibm_runtime import Estimator, QiskitRuntimeService, Session
-from qiskit_ibm_runtime.options import Options
 
 save_path = ""
 
@@ -51,41 +48,19 @@ beta = varqite_kwargs["num_timesteps"] * beta_timestep * 2
 
 problem = TimeEvolutionProblem(hamiltonian=horiginal ^ "I" * num_qubits, time=beta / 2)
 
-#########################Problem defined. Now set up the backend.
-# load the service and set the backend to the simulator
-service = QiskitRuntimeService()
-backend = "ibmq_qasm_simulator"
-# Make a noise model
-fake_backend = FakeAuckland()
-noise_model = NoiseModel.from_backend(fake_backend)
 
-# Set options to include the noise model
-options = Options()
-options.simulator = {
-    "noise_model": noise_model,
-    "basis_gates": fake_backend.operation_names,
-    "coupling_map": sorted(set([tuple(sorted(x)) for x in fake_backend.coupling_map])),
-    "seed_simulator": 42,
-}
+estimator = Estimator()
+gradient = ReverseEstimatorGradient()
+qgt = ReverseQGT()
+variational_principle = variationalprinciplestorage(ImaginaryMcLachlanPrinciple)(
+    gradient=gradient, qgt=qgt
+)
 
-# Set number of shots, optimization_level and resilience_level
-options.execution.shots = 1e4 / 5
-options.optimization_level = 2
-options.resilience_level = 2
-
-with Session(service=service, backend=backend):
-    estimator = Estimator(options=options)
-    gradient = LinCombEstimatorGradient(estimator)
-    qgt = LinCombQGT(estimator)
-    variational_principle = variationalprinciplestorage(ImaginaryMcLachlanPrinciple)(
-        gradient=gradient, qgt=qgt
-    )
-
-    varqite = VarQITE(
-        ansatz, x0, variational_principle=variational_principle, **varqite_kwargs
-    )
-    print("Evolving")
-    result_varqite = varqite.evolve(problem)
+varqite = VarQITE(
+    ansatz, x0, variational_principle=variational_principle, **varqite_kwargs
+)
+print("Evolving")
+result_varqite = varqite.evolve(problem)
 
 print(2 * result_varqite.times)
 
