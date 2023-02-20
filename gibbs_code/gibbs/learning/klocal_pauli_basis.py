@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from itertools import chain, combinations, product
+from itertools import chain, product
 
 import numpy as np
 from qiskit.quantum_info import SparsePauliOp

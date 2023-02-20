@@ -54,7 +54,9 @@ beta = varqite_kwargs["num_timesteps"] * beta_timestep
 ##########Initialize the problem.
 horiginal = lattice_hamiltonian(**lattice_hamiltonian_arguments)
 if input_args["cfield"] is not None:
-    control_field = SparsePauliOp.from_list(input_args["cfield"])
+    control_field = SparsePauliOp.from_list(
+        list(zip(input_args["cfield"][::2], input_args["cfield"][1::2]))
+    )
     horiginal = (horiginal + control_field).simplify()
 coriginal = KLocalPauliBasis(learning_locality, num_qubits).pauli_to_vector(horiginal)
 ansatz, x0 = efficientTwoLocalansatz(**ansatz_arguments)
@@ -106,4 +108,4 @@ gibbs_result = GibbsResult(
     stored_qgts=variational_principle.stored_qgts,
     stored_gradients=variational_principle.stored_gradients,
 )
-gibbs_result.save("classic_result")
+gibbs_result.save("qasm_result")

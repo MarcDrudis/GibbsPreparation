@@ -1,15 +1,15 @@
 from __future__ import annotations
-from qiskit.quantum_info import Statevector, DensityMatrix
-from qiskit.circuit import QuantumCircuit
-from gibbs.learning.constraint_matrix import ConstraintMatrixFactory
-from scipy.linalg import block_diag
-from scipy.sparse import bmat
-from scipy.optimize import minimize
-from gibbs.utils import classical_learn_hamiltonian
-from scipy.linalg import cholesky, solve_triangular
-from gibbs.utils import printarray
-import numpy as np
+
 import time
+
+import numpy as np
+from gibbs.learning.constraint_matrix import ConstraintMatrixFactory
+from gibbs.utils import classical_learn_hamiltonian, printarray
+from qiskit.circuit import QuantumCircuit
+from qiskit.quantum_info import DensityMatrix, Statevector
+from scipy.linalg import block_diag, cholesky, solve_triangular
+from scipy.optimize import minimize
+from scipy.sparse import bmat
 
 
 class BayesianLearning:
@@ -17,7 +17,7 @@ class BayesianLearning:
         self,
         states: list[Statevector | QuantumCircuit],
         control_fields: list[np.ndarrays],
-        constraint_matrix_factory: ConstraintMatrixFactory,
+        cmat_factory: ConstraintMatrixFactory,
         prior_mean: np.ndarray,
         prior_covariance: np.ndarray | tuple[float, float],
         sampling_std: float,
@@ -31,7 +31,7 @@ class BayesianLearning:
         self.states = states
         self.shots = shots
         self.control_fields = control_fields
-        self.constraint_matrix_factory = constraint_matrix_factory
+        self.cmat_factory = cmat_factory
         self.sampling_std = sampling_std
         self.size = prior_mean.size
         self.current_mean = prior_mean
@@ -40,18 +40,31 @@ class BayesianLearning:
             self.total_cov = np.diag(
                 np.concatenate(
                     [ones * prior_covariance[0]]
-                    + [ones * prior_covariance[0]] * (len(control_fields) - 1)
+                    + [ones * prior_covariance[1]] * (len(control_fields) - 1)
                 )
             )
         else:
             self.total_cov = prior_covariance
 
-        self.constraint_matrices = None
+        self.cmats = [None] * len(self.control_fields)
+
+    def constraint_matrix(self, index: int) -> np.ndarray:
+        if self.cmats[index] == None:
+            self.cmats[index] = self.cmat_factory.create_cmat(
+                self.states[index], shots=self.shots
+            )
+
+        return self.cmats[index]
 
     @property
     def current_cov(self):
         """Covariance of c, what we are interested. This is only used to compute the blocks in the conditional covariance"""
         return self.total_cov[: self.size, : self.size]
+
+    @current_cov.setter
+    def current_cov(self, covariance=np.ndarray):
+        """Covariance of c, what we are interested. This is only used to compute the blocks in the conditional covariance"""
+        self.total_cov[: self.size, : self.size] = covariance
 
     def cfield_cov(self, index: int):
         """Covariance of v, the control field. We update the knowledge we had on the control fields as well.
@@ -63,59 +76,46 @@ class BayesianLearning:
             self.size * index : self.size * (index + 1),
         ]
 
-    def partial_cov(self, indexes: list[int]):
-        print(indexes)
-        pcov = np.split(
-            self.total_cov,
-            [i * self.size for i in range(len(self.control_fields))],
+    def get_partial_cov(self, indexes: list[int]):
+        pcov = self.total_cov
+        pcov = np.concatenate(
+            [pcov[i * self.size : (i + 1) * self.size, :] for i in indexes],
             axis=0,
         )
-        print(len(pcov))
-        pcov = np.concatenate([pcov[i] for i in indexes])
-        print("why", pcov.shape)
-
-        pcov = np.split(
-            self.total_cov,
-            [i * self.size for i in range(len(self.control_fields))],
+        pcov = np.concatenate(
+            [pcov[:, i * self.size : (i + 1) * self.size] for i in indexes],
             axis=1,
         )
-        pcov = [pcov[i] for i in indexes]
         return pcov
 
-    @property
-    def inverse_cov(self):
-        """Inverse of the current covariance matrix"""
-        return np.linalg.inv(self.total_cov)
-
-    # @property
-    # def Lx(self):
-    #     return np.linalg.cholesky(self.inverse_cov)
-
-    def constraint_matrix(self, index: int) -> np.ndarray:
-        if self.constraint_matrices == None:
-            self.constraint_matrices = [
-                self.constraint_matrix_factory.create_constraint_matrix(
-                    state, shots=self.shots
-                )
-                for state in self.states
-            ]
-        return self.constraint_matrices[index]
+    def set_partial_cov(self, new_cov: np.ndarray, indexes: list[int]):
+        for ii, i in enumerate(indexes):
+            for jj, j in enumerate(indexes):
+                self.total_cov[
+                    self.size * i : self.size * (i + 1),
+                    self.size * j : self.size * (j + 1),
+                ] = new_cov[
+                    self.size * ii : self.size * (ii + 1),
+                    self.size * jj : self.size * (jj + 1),
+                ]
 
     def cond_covariance(self, x, indexes: list[int]) -> np.ndarray:
         """
         Returns the covariance of the error conditioned on x.
         """
-        cov = block_diag(*[self._single_block_cond_cov(x, i) for i in indexes])
+        cov = block_diag(
+            *[self._single_block_cond_cov(x, i, e) for e, i in enumerate(indexes)]
+        )
         return cov
 
-    def _single_block_cond_cov(self, x, c_field_index):
+    def _single_block_cond_cov(self, x, c_field_index, enum_index):
         """
         This returns a block of the conditional covariance. The shape should be the same as c.
         """
         cfield_cov = self.cfield_cov(c_field_index)
         c = x[: self.size]
         v = (
-            x[self.size * c_field_index : self.size * (c_field_index + 1)]
+            x[self.size * enum_index : self.size * (enum_index + 1)]
             if c_field_index != 0
             else np.zeros_like(c)
         )
@@ -137,7 +137,6 @@ class BayesianLearning:
         We use the fact that cholesky of the inverse is the inverse of cholesky.
         Be warry that scipy uses different notation than paper.
         """
-        print(Gammaex.shape, A.shape, x.shape)
         L_inv = cholesky(Gammaex, lower=True)
         c = solve_triangular(L_inv, A @ x)
         return np.linalg.norm(c) ** 2
@@ -152,17 +151,17 @@ class BayesianLearning:
     # We can reduce the cost if Lx is diagonal
     def _cost_function(self, x, A, indexes: list[int]):
         Gammaex = self.cond_covariance(x, indexes)
-        A = self.block_control_matrix([self.constraint_matrix(i) for i in indexes])
+        A = self.block_control_matrix(indexes)
+
         xbar = np.concatenate(
             [self.current_mean, *[self.control_fields[i] for i in indexes[1:]]]
         )
-
         loss = self._cond_term(Gammaex, A, x)
-        regularization = self._distribution_term(self.partial_cov(indexes), x, xbar)
+        regularization = self._distribution_term(self.get_partial_cov(indexes), x, xbar)
         return loss, regularization
 
-    @staticmethod
-    def block_control_matrix(constraint_matrices: list):
+    def block_control_matrix(self, indexes=list[int]):
+        constraint_matrices = [self.constraint_matrix(i) for i in indexes]
         return bmat(
             [[constraint_matrices[0]] + [None] * (len(constraint_matrices) - 1)]
             + [
@@ -172,7 +171,7 @@ class BayesianLearning:
         )
 
     def minimization_problem(self, indexes: list[int]) -> dict:
-        A = self.block_control_matrix([self.constraint_matrices[i] for i in indexes])
+        A = self.block_control_matrix(indexes)
 
         def cost_function(x):
             cost = self._cost_function(x, A, indexes)
@@ -182,33 +181,37 @@ class BayesianLearning:
         x0 = np.concatenate(
             [self.current_mean, *[self.control_fields[i] for i in indexes[1:]]]
         )
-
+        print(len(indexes), A.shape, x0.shape, self.current_mean.shape)
         assert (
             x0.size == A.shape[1]
         ), f"Size of x0: {x0.size} and constraint matrix: {A.shape} don't match"
-
-        print(
-            x0.shape,
-            A.shape,
-        )
 
         def callback(xx):
             return self._cost_function(xx, A, indexes)
 
         return {"fun": cost_function, "x0": x0, "callback": callback}
 
-    def update_mean(self):
-        min_prob = self.minimization_problem()
-        posterior_mean = minimize(
-            **min_prob, options={"maxiter": 1e5, "xrtol": 1e-3, "disp": True}
-        ).x
+    def update_mean(
+        self,
+        indexes: list[int],
+        options: dict = {"maxiter": 1e5, "xrtol": 1e-3, "disp": True},
+    ):
+        min_prob = self.minimization_problem(indexes)
+        posterior_mean = minimize(**min_prob, options=options).x
         print(
             f"The cost function ends up with a value of:{min_prob['fun'](posterior_mean) }, it started with a value of {min_prob['fun'](min_prob['x0'])}"
         )
+        assert (
+            self.current_mean.shape == posterior_mean[: self.size].shape
+        ), "Shapes don't match"
+        self.current_mean = posterior_mean[: self.size]
         return posterior_mean
 
-    def update_cov(self, posterior_x):
-        A = self.block_control_matrix(self.constraint_matrices)
-        Gammaex = self.cond_covariance(posterior_x)
+    def update_cov(self, posterior_x, indexes):
+        A = self.block_control_matrix(indexes)
+        Gammaex = self.cond_covariance(posterior_x, indexes)
         invgammaex = np.linalg.inv(Gammaex)
-        return np.linalg.inv(self.inverse_cov + A.T @ invgammaex @ A)
+        inverse_cov = np.linalg.inv(self.get_partial_cov(indexes))
+        new_cov = np.linalg.inv(inverse_cov + A.T @ invgammaex @ A)
+        self.set_partial_cov(new_cov, indexes)
+        return new_cov

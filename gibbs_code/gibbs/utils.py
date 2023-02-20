@@ -16,6 +16,23 @@ from qiskit.quantum_info import (
 from scipy.linalg import expm, logm
 from scipy.sparse.linalg import expm_multiply
 
+# def to_statevector(
+#     state: np.ndarray | SparsePauliOp, basis: KLocalPauliBasis | None = None
+# ) -> Statevector:
+#     if isinstance(state, np.ndarray):
+#         state = basis.vector_to_pauli_op(state)
+#     if isinstance(state, SparsePauliOp):
+#         state = simple_purify_hamiltonian(state)
+#     return state
+
+
+# def fidelity(
+#     stateA: np.ndarray | Statevector | SparsePauliOp,
+#     stateB: np.ndarray | Statevector | SparsePauliOp,
+#     basis: KLocalPauliBasis | None = None,
+# ) -> float:
+#     return state_fidelity(to_statevector(stateA), to_statevector(stateB))
+
 
 def print_ansatz(ansatz: QuantumCircuit) -> None:
     wire_order = list(range(ansatz.num_qubits))
@@ -159,9 +176,12 @@ def simple_purify_hamiltonian(
         id_pur.data,
     )
     state = state / np.linalg.norm(state)
-    state += np.random.normal(0, noise, len(state)) * np.exp(
-        1j * np.random.uniform(0, 2 * np.pi, len(state))
-    )
+    if noise > 0:
+        noise = np.random.normal(0, noise, len(state)) * np.exp(
+            1j * np.random.uniform(0, 2 * np.pi, len(state))
+        )
+
+        state += noise
     state = state / np.linalg.norm(state)
     return Statevector(state)
 

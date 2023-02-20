@@ -1,8 +1,8 @@
 {
-    "num_qubits":6,
+    "num_qubits":4,
     "learning_locality":3,
     "beta_timestep" : 0.04,
-    "num_timesteps" : 20,
+    "num_timesteps" : 25,
     "depth":2,
     "entanglement":"reverse_linear",
     "su2_gates": ["ry"],

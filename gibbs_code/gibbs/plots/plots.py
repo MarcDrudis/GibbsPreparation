@@ -133,7 +133,7 @@ def compare_preparations(results: list[GibbsResult], titles: list[str], timestep
 
     df, local_sizes = dataframe(results[0], timestep)
     for title, result in zip(titles, results):
-        df[title] = np.real(result.cfaulties[-1])
+        df[title] = np.real(result.cfaulties[timestep])
     fig = px.bar(
         df,
         x="Pauli Basis",

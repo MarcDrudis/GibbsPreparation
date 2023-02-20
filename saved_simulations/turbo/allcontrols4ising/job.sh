@@ -1,6 +1,5 @@
-#!/bin/sh
-/home/drudis/python_environements/test_easy_instalation/bin/python3.10 /home/drudis/GH/Julien/saved_simulations/turbo/allcontrols4ising/control_fields_classic.py 0 IIII
-/home/drudis/python_environements/test_easy_instalation/bin/python3.10 /home/drudis/GH/Julien/saved_simulations/turbo/allcontrols4ising/control_fields_classic.py 0.25 ZIII
-/home/drudis/python_environements/test_easy_instalation/bin/python3.10 /home/drudis/GH/Julien/saved_simulations/turbo/allcontrols4ising/control_fields_classic.py 0.25 IZII
-/home/drudis/python_environements/test_easy_instalation/bin/python3.10 /home/drudis/GH/Julien/saved_simulations/turbo/allcontrols4ising/control_fields_classic.py 0.25 IIZI
-/home/drudis/python_environements/test_easy_instalation/bin/python3.10 /home/drudis/GH/Julien/saved_simulations/turbo/allcontrols4ising/control_fields_classic.py 0.25 IIIZ
+#!/bin/bash
+for i in $(seq -0.25 0.05 0.25)
+do
+   /home/drudis/python_environements/test_easy_instalation/bin/python3.10 control_fields_classic.py $i YYII $i IYYI $i IIYY
+done

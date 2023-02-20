@@ -36,9 +36,12 @@ class ConstraintMatrixFactory:
             periodic=periodic,
         )
 
+        self.counter_shots = 0
+
     def _expectation_value(
         self, state: Statevector | DensityMatrix, pauli: str, shots: int | None
     ) -> float:
+        self.counter_shots += shots
         if isinstance(state, Statevector):
             obs = Pauli(pauli + "I" * len(pauli))
         if isinstance(state, DensityMatrix):
@@ -82,7 +85,15 @@ class ConstraintMatrixFactory:
         else:
             raise AssertionError(f"Wrong state type to sample from: {type(state)}")
 
-    def create_constraint_matrix(
+    def _get_value(self, Aq_Pauli: Pauli, Sm_Pauli: Pauli, sampled_paulis: np.array):
+        """Gets the value of a given commutator from a list of presampled paulis.
+        This avoids havning to sample the same pauli many times."""
+        operator = 1j * Aq_Pauli @ Sm_Pauli
+        phase = 1j**operator.phase
+        pauli_label = (operator * phase).to_label()
+        return phase * sampled_paulis[self.sampling_basis.pauli_to_num(pauli_label)]
+
+    def create_cmat(
         self, state: QuantumCircuit | Statevector, shots: int = 10000
     ) -> np.ndarray:
         """Creates a constraint matrix from the sampled paulis.
@@ -101,13 +112,7 @@ class ConstraintMatrixFactory:
             for j, Sm_label in enumerate(self.learning_basis.paulis_list):
                 Sm_Pauli = Pauli(Sm_label)
                 if Aq_Pauli.anticommutes(Sm_Pauli):
-                    operator = 1j * Aq_Pauli @ Sm_Pauli
-                    phase = 1j**operator.phase
-                    pauli_label = (operator * phase).to_label()
-                    value = (
-                        phase
-                        * sampled_paulis[self.sampling_basis.pauli_to_num(pauli_label)]
-                    )
+                    value = self._get_value(Aq_Pauli, Sm_Pauli, sampled_paulis)
                     if np.abs(value) != 0:
                         row.append(i)
                         col.append(j)
@@ -119,3 +124,49 @@ class ConstraintMatrixFactory:
             (data, (row, col)),
             shape=(self.constraint_basis.size, self.learning_basis.size),
         )
+
+
+class DumbConstraintMatrixFactory(ConstraintMatrixFactory):
+    def create_cmat(
+        self, state: QuantumCircuit | Statevector, shots: int = 10000
+    ) -> np.ndarray:
+        """Creates a constraint matrix from the sampled paulis.
+
+        Args:
+            sampled_paulis: A dictionary of sampled paulis and their probabilities.
+            Aq_basis: A list of k+1 paulis for the q coordinate.
+            Sm_basis: A list of k paulis for the m coordinate.
+        """
+        data = []
+        row = []
+        col = []
+        for i, Aq_label in enumerate(self.constraint_basis.paulis_list):
+            Aq_Pauli = Pauli(Aq_label)
+            for j, Sm_label in enumerate(self.learning_basis.paulis_list):
+                Sm_Pauli = Pauli(Sm_label)
+                if i < j:
+                    break
+                if Aq_Pauli.anticommutes(Sm_Pauli):
+                    value = self._get_value(Aq_Pauli, Sm_Pauli, state, shots)
+                    if np.abs(value) != 0:
+                        row.append(i)
+                        col.append(j)
+                        data.append(value)
+                elif not Aq_Pauli.commutes(Sm_Pauli):
+                    raise ValueError("Paulis do not commute or anticommute.")
+
+        mat = csr_matrix(
+            (data, (row, col)),
+            shape=(self.constraint_basis.size, self.learning_basis.size),
+        )
+        mat[: mat.shape[1], :] -= mat[: mat.shape[1], :].T
+        return mat
+
+    def _get_value(self, Aq_Pauli: Pauli, Sm_Pauli: Pauli, state, shots):
+        """Gets the value of a given commutator from a list of presampled paulis.
+        This avoids havning to sample the same pauli many times."""
+        operator = 1j * Aq_Pauli @ Sm_Pauli
+        phase = 1j**operator.phase
+        pauli_label = (operator * phase).to_label()
+        sampled_pauli = self._expectation_value(state, pauli_label, shots)
+        return phase * sampled_pauli

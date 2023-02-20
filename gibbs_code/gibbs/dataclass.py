@@ -71,17 +71,17 @@ class GibbsResult:
         np.save(f"{path}_date={self.date}", self.__dict__)
 
     @classmethod
-    def load(cls, path):
+    def load(self, path):
         """
         Loads a dictionary from a .npy file and returns a VarQITEResult class.
         """
         dictionary = np.load(path, allow_pickle=True).item()
         if "cfaultnorms" in dictionary.keys():
             dictionary.pop("cfaultnorms")
-        return cls(**dictionary)
+        return self(**dictionary)
 
     def state_ansatz(self, timestep: int) -> QuantumCircuit:
-        return self.ansatz.bind_parameters(self.parameters[-1])
+        return self.ansatz.bind_parameters(self.parameters[timestep])
 
     def state_vector(self, timestep: int) -> Statevector:
         return Statevector(self.state_ansatz(timestep))

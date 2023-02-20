@@ -1,11 +1,12 @@
 import unittest
+
+import numpy as np
 from ddt import data, ddt, unpack
 from gibbs.learning.bayesian_learning import BayesianLearning
 from gibbs.learning.constraint_matrix import ConstraintMatrixFactory
 from gibbs.learning.klocal_pauli_basis import KLocalPauliBasis
-from qiskit.quantum_info import Statevector, SparsePauliOp, partial_trace, DensityMatrix
-import numpy as np
 from gibbs.utils import simple_purify_hamiltonian
+from qiskit.quantum_info import DensityMatrix, SparsePauliOp, Statevector, partial_trace
 
 
 @ddt
@@ -22,10 +23,8 @@ class TestBayesianLearning(unittest.TestCase):
             simple_purify_hamiltonian(self.basis.vector_to_pauli_op(vec))
             for vec in [coriginal, coriginal + cfield]
         ]
-        control_fields = [np.zeros(self.basis.size), cfield]
-        prior_c_cov = np.eye(self.basis.size) * 0.1
-        prior_cfield_cov = np.eye(self.basis.size) * 0.01
-        
+        control_fields = [np.zeros(self.basis.size)] + [cfield] * 3
+
         self.bl = BayesianLearning(
             states=states,
             control_fields=control_fields,
@@ -33,23 +32,27 @@ class TestBayesianLearning(unittest.TestCase):
                 self.num_qubits, self.k, self.k
             ),
             prior_mean=coriginal,
-            prior_c_cov=prior_c_cov,
-            prior_cfield_cov=prior_cfield_cov,
-            sampling_std=1,
-            prior_preparation_noise=1e-3,
+            prior_covariance=(1, 0.1),
+            sampling_std=0.0001,
+            shots=1e1,
         )
 
     def test_construction(self):
         self.SetUp()
-        c_test = np.zeros(self.basis.size)
+        c_test = np.zeros(self.basis.size * len(self.bl.control_fields))
         c_test[0:5] = 1
-        cond_cov = self.bl.cond_covariance(c_test, 0)
+        cond_cov = self.bl.cond_covariance(c_test, [0, 1])
         # print(cond_cov)
 
-    def test_update(self):
+    # def test_update(self):
+    #     self.SetUp()
+    #     print(self.bl.)
+
+    def test_partial_cov(self):
         self.SetUp()
-        print(self.bl.update(1))
-        
-    def test_cost(self):
-        self.SetUp()
-        self.bl.
+        indexes = [0, 2]
+
+        assert self.bl.partial_cov(indexes).shape == (
+            self.basis.size * len(indexes),
+            self.basis.size * len(indexes),
+        ), f"The shapes are not as expected. We get {self.bl.partial_cov(indexes).shape} and should get square with {self.basis.size * len(indexes)}"
