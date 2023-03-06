@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from tqdm import trange
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -172,6 +172,20 @@ class GibbsResult:
         plt.close(fig)
         return HTML(anim.to_html5_video())
 
-    def fidelity_evolution(self):
+    def fidelity_evolution(self, progress_bar: bool = False):
         """Returns the fidelity of the state for each timestep."""
-        return [self.fidelity(i) for i in range(len(self.betas))]
+        iterable = trange(len(self.betas)) if progress_bar else range(len(self.betas))
+        return np.array([self.fidelity(i) for i in iterable])
+
+    def change_locality(self, new_locality: int):
+        new_dict = self.__dict__.copy()
+        new_dict.pop("cfaulties")
+        new_dict["klocality"] = new_locality
+        if new_locality > self.klocality:
+            new_dict["coriginal"] = np.zeros(
+                self.local_size(new_locality), dtype=np.complex128
+            )
+            new_dict["coriginal"][: self.coriginal.size] = self.coriginal
+        else:
+            new_dict["coriginal"] = self.coriginal[: self.local_size(new_locality)]
+        return GibbsResult(**new_dict)

@@ -15,6 +15,7 @@ from qiskit.quantum_info import (
 )
 from scipy.linalg import expm, logm
 from scipy.sparse.linalg import expm_multiply
+from scipy.optimize import least_squares
 
 # def to_statevector(
 #     state: np.ndarray | SparsePauliOp, basis: KLocalPauliBasis | None = None
@@ -80,6 +81,16 @@ def printarray(array, rounding=3, func=np.real, scientific=False):
         print(np.round(array, rounding))
     else:
         print(np.round(func(array), rounding))
+
+
+def noise_hamiltonian(
+    num_qubits: int, periodic: bool = False, locality: int = 2, noise_locality: int = 1
+):
+    basis = KLocalPauliBasis(locality, num_qubits)
+    noiseloc_size = KLocalPauliBasis(locality, num_qubits).size
+    H_vec = np.zeros(basis.size)
+    H_vec[:noiseloc_size] = np.random.uniform(-1, 1, size=noiseloc_size)
+    return basis.vector_to_pauli_op(H_vec)
 
 
 def lattice_hamiltonian(
@@ -165,9 +176,11 @@ def state_from_ansatz(ansatz: QuantumCircuit, parameters: np.ndarray) -> Density
 
 
 def simple_purify_hamiltonian(
-    hamiltonian: SparsePauliOp, noise: float = 0
+    hamiltonian: SparsePauliOp | tuple[np.ndarray, KLocalPauliBasis], noise: float = 0
 ) -> Statevector:
     """Creates a statevector purification of the thermal state of the hamiltonian."""
+    if isinstance(hamiltonian, tuple):
+        hamiltonian = hamiltonian[1].vector_to_pauli_op(hamiltonian[0])
     extended_hamiltonian = hamiltonian ^ ("I" * hamiltonian.num_qubits)
     sparse_hamiltonian = extended_hamiltonian.to_matrix(sparse=True)
     id_pur = identity_purification(hamiltonian.num_qubits)
@@ -223,5 +236,32 @@ def classical_learn_hamiltonian(
 
 
 def spectral_dec(A):
-    u, s, v = np.linalg.svd(A.todense(), hermitian=False, compute_uv=True)
+    u, s, v = np.linalg.svd(A, hermitian=False, compute_uv=True)
     return s, np.asarray(v)
+
+
+def candidate(candidate, c_original):
+    v = candidate.copy()
+    v *= np.linalg.norm(c_original)
+    if np.linalg.norm(c_original + v) < np.linalg.norm(c_original - v):
+        v = -v
+    return v
+
+
+def candidateV2(candidate, c_original_local):
+    if candidate.size < c_original_local.size:
+        raise ValueError("The candidate vector has to be bigger than the original.")
+    coeff = np.dot(candidate[: c_original_local.size], c_original_local)
+    return coeff * candidate
+
+
+def candidateV3(candidate, c_original_local):
+    if candidate.size < c_original_local.size:
+        raise ValueError("The candidate vector has to be bigger than the original.")
+
+    fun = lambda beta: np.linalg.norm(
+        beta * candidate[: c_original_local.size] - c_original_local
+    )
+
+    beta = least_squares(fun, 1).x
+    return beta * candidate

@@ -47,14 +47,23 @@ class BayesianLearning:
             self.total_cov = prior_covariance
 
         self.cmats = [None] * len(self.control_fields)
+        self.error_mats = [None] * len(self.control_fields)
 
     def constraint_matrix(self, index: int) -> np.ndarray:
-        if self.cmats[index] == None:
-            self.cmats[index] = self.cmat_factory.create_cmat(
+        if self.cmats[index] is None:
+            self.cmats[index], self.error_mats[index] = self.cmat_factory.create_cmat(
                 self.states[index], shots=self.shots
             )
 
         return self.cmats[index]
+
+    def error_matrix(self, index: int) -> np.ndarray:
+        if self.error_matrix[index] == None:
+            self.cmats[index], self.error_mats[index] = self.cmat_factory.create_cmat(
+                self.states[index], shots=self.shots
+            )
+
+        return self.error_mats[index]
 
     @property
     def current_cov(self):
