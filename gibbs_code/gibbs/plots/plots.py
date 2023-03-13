@@ -25,8 +25,8 @@ def dataframe(gibbs_result: GibbsResult, timestep: int, periodic: bool = False):
             ).size
         ),
         "locality": local_labels,
-        "prepH": np.real(gibbs_result.cfaulties[timestep]),
-        "priorH": np.real(gibbs_result.coriginal) * gibbs_result.betas[timestep],
+        "H<sub>prep": np.real(gibbs_result.cfaulties[timestep]),
+        "H<sub>o": np.real(gibbs_result.coriginal) * gibbs_result.betas[timestep],
     }
     return data, local_sizes
 
@@ -51,8 +51,8 @@ def posteriordist(gibbs_result: GibbsResult, posterior_mean, posterior_cov):
     data, _ = dataframe(gibbs_result)
     data["posteriorH"]: posterior_mean[: c_original_prior.size]
     data["Posterior Std"]: np.real(posterior_cov.diagonal()[: c_original_prior.size])
-    data["Prior Error"] = np.abs(data["priorH"] - data["prepH"])
-    data["Posterior Error"] = np.abs(data["posteriorH"] - data["prepH"])
+    data["Prior Error"] = np.abs(data["H<sub>o"] - data["H<sub>prep"])
+    data["Posterior Error"] = np.abs(data["posteriorH"] - data["H<sub>prep"])
 
     # fig = px.bar(data, x='paulibasis', y=['prepH','priorH'],barmode="overlay")
     fig = px.bar(
@@ -83,11 +83,11 @@ def preparation(
     import plotly.express as px
 
     df, local_sizes = dataframe(result, timestep, periodic)
-    print(df["prepH"].shape, df["priorH"].shape, df["Pauli Basis"].shape)
+    # print(df["H<sub>prep"].shape, df["H<sub>o"].shape, df["Pauli Basis"].shape)
     fig = px.bar(
         df,
         x="Pauli Basis",
-        y=["prepH", "priorH"],
+        y=["H<sub>prep", "H<sub>o"],
         barmode="group",
         hover_name="Pauli Basis Label",
     )
@@ -111,7 +111,7 @@ def preparation_vsclassic(result: GibbsResult, result_classic: GibbsResult) -> N
     fig = px.bar(
         df,
         x="Pauli Basis",
-        y=["prepH", "priorH", "classicprepH"],
+        y=["H<sub>prep", "H<sub>o", "classicprepH"],
         barmode="group",
         hover_name="Pauli Basis Label",
     )
@@ -137,7 +137,7 @@ def compare_preparations(results: list[GibbsResult], titles: list[str], timestep
     fig = px.bar(
         df,
         x="Pauli Basis",
-        y=["priorH"] + titles,
+        y=["H<sub>o"] + titles,
         barmode="group",
         hover_name="Pauli Basis Label",
     )
@@ -157,7 +157,7 @@ def preparation_error(result: GibbsResult) -> None:
     import plotly.express as px
 
     df, local_sizes = dataframe(result)
-    df["Preparation Error"] = np.abs(df["prepH"] - df["priorH"])
+    df["Preparation Error"] = np.abs(df["H<sub>prep"] - df["H<sub>o"])
     fig = px.bar(
         df,
         x="Pauli Basis",

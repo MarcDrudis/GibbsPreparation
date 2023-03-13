@@ -47,6 +47,7 @@ def efficientTwoLocalansatz(
     entanglement: str = "circular",
     su2_gates: list[str] = ["rz", "ry"],
     ent_gates: list[str] = ["cx"],
+    barriers: bool = False,
 ):
     """Creates an ansatz that implements a series of Pauli rotations.
     Args:
@@ -62,7 +63,7 @@ def efficientTwoLocalansatz(
         ent_gates,
         entanglement=entanglement,
         reps=depth,
-        insert_barriers=False,
+        insert_barriers=barriers,
     ).decompose()
 
     reordered = [None] * num_qubits * 2
@@ -70,6 +71,8 @@ def efficientTwoLocalansatz(
     reordered[1::2] = list(ancilla)
     ansatz.append(eff, qargs=reordered)
     # This one is the one that prepares the purification of the identity
+    if barriers:
+        ansatz.barrier()
     ansatz.h(qr)
     ansatz.cx(qr, ancilla)
 
