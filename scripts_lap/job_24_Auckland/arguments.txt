@@ -1,0 +1,18 @@
+{
+    "num_qubits":4,
+    "learning_locality":3,
+    "beta_timestep" : 0.04,
+    "num_timesteps" : 25,
+    "depth":2,
+    "entanglement":"pairwise",
+    "no_hadamart":0,
+    "su2_gates": ["ry"],
+    "ent_gates": ["cx"],
+    "j_const": 0.25,
+    "g_const": -1,
+    "one_local": ["X"],
+    "two_local": ["ZZ"],
+    "add_cfield": 0,
+    "number_shots":100000,
+    "backend":"ibm_auckland"
+}

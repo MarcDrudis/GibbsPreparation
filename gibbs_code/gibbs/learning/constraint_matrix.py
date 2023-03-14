@@ -92,18 +92,10 @@ class ConstraintMatrixFactory:
         else:
             raise AssertionError(f"Wrong state type to sample from: {type(state)}")
 
-    def create_cmat(
-        self, state: QuantumCircuit | Statevector, shots: int = 10000
+    def create_cmat_from_sample(
+        self, sampled_paulis: list, variances: list
     ) -> tuple[np.ndarray, np.ndarray]:
-        """Creates a constraint matrix from the sampled paulis.
-
-        Args:
-            sampled_paulis: A dictionary of sampled paulis and their probabilities.
-            Aq_basis: A list of k+1 paulis for the q coordinate.
-            Sm_basis: A list of k paulis for the m coordinate.
-        """
-        sampled_paulis, variances = self.sample_paulis(state, shots)
-
+        """Creates a constraint matrix from the sampled paulis."""
         con_len = self.constraint_basis.size
         learn_len = self.learning_basis.size
         sampl_len = self.sampling_basis.size
@@ -128,6 +120,13 @@ class ConstraintMatrixFactory:
                 K_mat[k, i] = val
                 E_mat[k, i, index] = std
         return K_mat, E_mat
+
+    def create_cmat(
+        self, state: QuantumCircuit | Statevector, shots: int = 10000
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Samples and creates the constraint matrix."""
+        sampled_paulis, variances = self.sample_paulis(state, shots)
+        return self.create_cmat_from_sample(sampled_paulis, variances)
 
 
 # class DumbConstraintMatrixFactory(ConstraintMatrixFactory):

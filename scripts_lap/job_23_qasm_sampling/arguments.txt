@@ -1,0 +1,5 @@
+{
+    "state_path":"./",
+    "backend_input":"FakeAuckland",
+    "shots":1e7
+}

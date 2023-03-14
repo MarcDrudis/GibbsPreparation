@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "HamiltonianLearning.py", line 58, in <module>
+    with Session(service=service, backend=backend):
+NameError: name 'backend' is not defined

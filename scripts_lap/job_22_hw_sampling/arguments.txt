@@ -1,0 +1,5 @@
+{
+    "state_path":"./",
+    "backend_input":"ibm_auckland",
+    "shots":1e6
+}

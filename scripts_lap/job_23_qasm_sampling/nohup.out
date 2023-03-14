@@ -1,0 +1,84 @@
+Traceback (most recent call last):
+  File "HamiltonianLearning.py", line 71, in <module>
+    estimator_result = estimator.run(
+  File "/home/ubuntu/gibbsenv/lib/python3.8/site-packages/qiskit_ibm_runtime/session.py", line 212, in __exit__
+    self.close()
+  File "/home/ubuntu/gibbsenv/lib/python3.8/site-packages/qiskit_ibm_runtime/session.py", line 173, in close
+    self._service._api_client.close_session(self._session_id)
+  File "/home/ubuntu/gibbsenv/lib/python3.8/site-packages/qiskit_ibm_runtime/api/clients/runtime.py", line 335, in close_session
+    self._api.runtime_session(session_id=session_id).close()
+  File "/home/ubuntu/gibbsenv/lib/python3.8/site-packages/qiskit_ibm_runtime/api/rest/runtime_session.py", line 43, in close
+    self.session.delete(url)
+  File "/home/ubuntu/gibbsenv/lib/python3.8/site-packages/requests/sessions.py", line 669, in delete
+    return self.request("DELETE", url, **kwargs)
+  File "/home/ubuntu/gibbsenv/lib/python3.8/site-packages/qiskit_ibm_runtime/api/session.py", line 269, in request
+    response = super().request(method, final_url, headers=headers, **kwargs)
+  File "/home/ubuntu/gibbsenv/lib/python3.8/site-packages/requests/sessions.py", line 587, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/home/ubuntu/gibbsenv/lib/python3.8/site-packages/requests/sessions.py", line 701, in send
+    r = adapter.send(request, **kwargs)
+  File "/home/ubuntu/gibbsenv/lib/python3.8/site-packages/requests/adapters.py", line 489, in send
+    resp = conn.urlopen(
+  File "/home/ubuntu/gibbsenv/lib/python3.8/site-packages/urllib3/connectionpool.py", line 703, in urlopen
+    httplib_response = self._make_request(
+  File "/home/ubuntu/gibbsenv/lib/python3.8/site-packages/urllib3/connectionpool.py", line 449, in _make_request
+    six.raise_from(e, None)
+  File "<string>", line 3, in raise_from
+  File "/home/ubuntu/gibbsenv/lib/python3.8/site-packages/urllib3/connectionpool.py", line 444, in _make_request
+    httplib_response = conn.getresponse()
+  File "/usr/lib/python3.8/http/client.py", line 1348, in getresponse
+    response.begin()
+  File "/usr/lib/python3.8/http/client.py", line 316, in begin
+    version, status, reason = self._read_status()
+  File "/usr/lib/python3.8/http/client.py", line 277, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+  File "/usr/lib/python3.8/socket.py", line 669, in readinto
+    return self._sock.recv_into(b)
+  File "/usr/lib/python3.8/ssl.py", line 1241, in recv_into
+    return self.read(nbytes, buffer)
+  File "/usr/lib/python3.8/ssl.py", line 1099, in read
+    return self._sslobj.read(len, buffer)
+KeyboardInterrupt
+
+Something went wrong...
+
+
+ERROR MESSAGE:
+Iteration timed out
+
+
+Job ID: cg7jf7a14ejq4canp280. Job status: JobStatus.RUNNING.
+Starting trial number 2...
+
+Creating new session...
+
+
+Something went wrong...
+
+
+ERROR MESSAGE:
+Iteration timed out
+
+
+Job ID: cg7l7makefmul9td95vg. Job status: JobStatus.RUNNING.
+Starting trial number 3...
+
+Creating new session...
+
+
+Something went wrong...
+
+
+ERROR MESSAGE:
+Iteration timed out
+
+
+Job ID: cg7n0bn91ascc922fs30. Job status: JobStatus.RUNNING.
+Traceback (most recent call last):
+  File "HamiltonianLearning.py", line 71, in <module>
+    estimator_result = estimator.run(
+  File "/home/ubuntu/gibbsenv/lib/python3.8/site-packages/gibbs/custom_estimator.py", line 71, in run
+    job.cancel()
+  File "/home/ubuntu/gibbsenv/lib/python3.8/site-packages/qiskit_ibm_runtime/runtime_job.py", line 220, in cancel
+    raise RuntimeInvalidStateError(
+qiskit_ibm_runtime.exceptions.RuntimeInvalidStateError: 'Job cannot be cancelled: \'409 Client Error: Conflict for url: https://runtime-us-east.quantum-computing.ibm.com/jobs/cg7n0bn91ascc922fs30/cancel. {"errors":[{"code":"conflict","message":"job not cancellable","more_info":"https://cloud.ibm.com/apidocs/quantum-computing#error-handling"}],"trace":"cg7oosn91ascc923o3h0"}\''

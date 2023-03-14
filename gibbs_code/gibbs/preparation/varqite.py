@@ -48,6 +48,7 @@ def efficientTwoLocalansatz(
     su2_gates: list[str] = ["rz", "ry"],
     ent_gates: list[str] = ["cx"],
     barriers: bool = False,
+    no_hadamart: bool = False,
 ):
     """Creates an ansatz that implements a series of Pauli rotations.
     Args:
@@ -64,6 +65,7 @@ def efficientTwoLocalansatz(
         entanglement=entanglement,
         reps=depth,
         insert_barriers=barriers,
+        skip_final_rotation_layer=False,
     ).decompose()
 
     reordered = [None] * num_qubits * 2
@@ -73,10 +75,19 @@ def efficientTwoLocalansatz(
     # This one is the one that prepares the purification of the identity
     if barriers:
         ansatz.barrier()
-    ansatz.h(qr)
+    x0 = np.zeros(ansatz.num_parameters)
+    if no_hadamart:
+        x0[-2 * num_qubits :: 2] = np.pi / 2
+    else:
+        ansatz.h(qr)
     ansatz.cx(qr, ancilla)
 
     # Set the initial parameters to be the identity
-    x0 = np.zeros(ansatz.num_parameters)
-
+    if not np.isclose(
+        partial_trace(
+            Statevector(ansatz.bind_parameters(x0)), range(1, 2 * num_qubits, 2)
+        ).data,
+        np.eye(2**num_qubits) / 2**num_qubits,
+    ).all():
+        raise ValueError("This configuration of ansatz does not start in identity.")
     return ansatz, x0

@@ -94,7 +94,7 @@ class GibbsResult:
     @property
     def ansatz(self):
         """Returns the ansatz."""
-        return efficientTwoLocalansatz(**self.ansatz_arguments)[0]
+        return efficientTwoLocalansatz(**self.ansatz_arguments)[0].decompose()
 
     @property
     def basis(self):
