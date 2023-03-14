@@ -1,3 +1,4 @@
+# %%
 import json
 
 from gibbs.dataclass import GibbsResult
@@ -13,7 +14,7 @@ from qiskit.algorithms.time_evolvers.variational import (
     VarQITE,
 )
 
-# from qiskit.primitives import Estimator
+# %% from qiskit.primitives import Estimator
 from qiskit_ibm_runtime import Estimator, QiskitRuntimeService, Session
 from qiskit_ibm_runtime.options import Options
 import random
@@ -39,9 +40,9 @@ ansatz_arguments = {
         "entanglement",
         "su2_gates",
         "ent_gates",
-        "no_hadamart",
     )
 }
+ansatz_arguments["no_hadamart"] = bool(input_args["no_hadamart"])
 lattice_hamiltonian_arguments = {
     k: input_args[k]
     for k in (
@@ -58,7 +59,7 @@ beta = varqite_kwargs["num_timesteps"] * beta_timestep
 backend = input_args["backend"]
 number_shots = input_args["number_shots"]
 add_cfield = bool(input_args["add_cfield"])
-##########Initialize the problem.
+# %%#########Initialize the problem.
 horiginal = lattice_hamiltonian(**lattice_hamiltonian_arguments)
 kbasis = KLocalPauliBasis(learning_locality, num_qubits)
 coriginal = kbasis.pauli_to_vector(horiginal)
@@ -70,7 +71,7 @@ if add_cfield:
 ansatz, x0 = efficientTwoLocalansatz(**ansatz_arguments)
 problem = TimeEvolutionProblem(hamiltonian=horiginal ^ "I" * num_qubits, time=beta / 2)
 
-##########Choose between qasm simulation or real hw
+# %%#########Choose between qasm simulation or real hw
 
 list_fake_backends = ["FakeAuckland"]
 list_real_backends = ["ibm_auckland", "ibmq_mumbai"]

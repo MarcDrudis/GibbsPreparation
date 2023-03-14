@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "script_hw.py", line 70, in <module>
+    ansatz, x0 = efficientTwoLocalansatz(**ansatz_arguments)
+  File "/home/ubuntu/gibbsenv/lib/python3.8/site-packages/gibbs/preparation/varqite.py", line 92, in efficientTwoLocalansatz
+    raise ValueError("This configuration of ansatz does not start in identity.")
+ValueError: This configuration of ansatz does not start in identity.

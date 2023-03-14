@@ -80,12 +80,13 @@ def efficientTwoLocalansatz(
         x0[-2 * num_qubits :: 2] = np.pi / 2
     else:
         ansatz.h(qr)
+
     ansatz.cx(qr, ancilla)
 
     # Set the initial parameters to be the identity
     if not np.isclose(
         partial_trace(
-            Statevector(ansatz.bind_parameters(x0)), range(1, 2 * num_qubits, 2)
+            Statevector(ansatz.bind_parameters(x0)), range(num_qubits, 2 * num_qubits)
         ).data,
         np.eye(2**num_qubits) / 2**num_qubits,
     ).all():
